@@ -9,18 +9,28 @@ import java.awt.Font;
 import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
 import java.text.NumberFormat;
+import java.text.ParseException;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Function;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
 import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
+import javax.swing.SpinnerDateModel;
 import javax.swing.table.DefaultTableModel;
 
 /** Semua warna, font, dan komponen yang sering dipakai. Ganti tema cukup di sini. */
@@ -44,6 +54,7 @@ public final class Tema {
 
     private static final String NAMA_FONT = pilihFont();
     private static final NumberFormat FORMAT_RUPIAH = NumberFormat.getIntegerInstance(Locale.forLanguageTag("id-ID"));
+    private static final DateTimeFormatter FORMAT_TANGGAL = DateTimeFormatter.ofPattern("dd-MM-yyyy");
 
     private Tema() {}
 
@@ -190,6 +201,42 @@ public final class Tema {
     /** Contoh: 150000 menjadi "Rp 150.000". */
     public static String rupiah(long nilai) {
         return "Rp " + FORMAT_RUPIAH.format(nilai);
+    }
+
+    /** Contoh: 2026-11-06 menjadi "06-11-2026". */
+    public static String teksTanggal(LocalDate tanggal) {
+        return FORMAT_TANGGAL.format(tanggal);
+    }
+
+    /** Kolom tanggal tanpa library tambahan; isi awal hari ini + tambahanHari. */
+    public static JSpinner pilihTanggal(int tambahanHari) {
+        JSpinner spinner = new JSpinner(new SpinnerDateModel());
+        spinner.setEditor(new JSpinner.DateEditor(spinner, "dd-MM-yyyy"));
+        spinner.setValue(Date.from(LocalDate.now().plusDays(tambahanHari)
+                .atStartOfDay(ZoneId.systemDefault()).toInstant()));
+        return spinner;
+    }
+
+    /** Membaca kolom tanggal, termasuk teks yang baru diketik. */
+    public static LocalDate nilaiTanggal(JSpinner spinner) {
+        try {
+            spinner.commitEdit();
+        } catch (ParseException e) {
+            throw new IllegalArgumentException("Format tanggal harus dd-MM-yyyy, contoh 25-12-2026.");
+        }
+        return tanggalTerakhir(spinner);
+    }
+
+    /** Nilai valid terakhir, tanpa membaca teks yang masih diketik. */
+    public static LocalDate tanggalTerakhir(JSpinner spinner) {
+        return ((Date) spinner.getValue()).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    /** Dropdown berisi objek: teks yang tampil ditentukan oleh fungsi teks. */
+    public static <T> void teksDropdown(JComboBox<T> dropdown, Function<T, String> teks) {
+        DefaultListCellRenderer dasar = new DefaultListCellRenderer();
+        dropdown.setRenderer((daftar, nilai, indeks, dipilih, fokus) -> dasar.getListCellRendererComponent(
+                daftar, nilai == null ? "" : teks.apply(nilai), indeks, dipilih, fokus));
     }
 
     /** Tabel hanya-baca: sel tidak bisa diketik langsung, satu baris dipilih sekaligus. */

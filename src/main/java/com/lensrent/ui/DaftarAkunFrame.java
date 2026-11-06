@@ -2,6 +2,7 @@ package com.lensrent.ui;
 
 import com.lensrent.service.AlatService;
 import com.lensrent.service.AuthService;
+import com.lensrent.service.TransaksiService;
 import java.awt.Font;
 import java.awt.GridLayout;
 import javax.swing.Box;
@@ -17,6 +18,7 @@ public class DaftarAkunFrame extends JFrame {
 
     private final AuthService authService;
     private final AlatService alatService;
+    private final TransaksiService transaksiService;
 
     private final JTextField fieldNama = new JTextField();
     private final JTextField fieldNoHp = new JTextField();
@@ -27,10 +29,11 @@ public class DaftarAkunFrame extends JFrame {
     private final JPasswordField fieldUlangiPassword = new JPasswordField();
     private final JLabel labelPesan = Tema.labelPesan();
 
-    public DaftarAkunFrame(AuthService authService, AlatService alatService) {
+    public DaftarAkunFrame(AuthService authService, AlatService alatService, TransaksiService transaksiService) {
         super("LensRent - Daftar Akun Penyewa");
         this.authService = authService;
         this.alatService = alatService;
+        this.transaksiService = transaksiService;
 
         JPanel kartu = Tema.kartuForm();
         kartu.add(Tema.judul("Daftar Akun"));
@@ -89,7 +92,7 @@ public class DaftarAkunFrame extends JFrame {
 
     private void kembaliKeLogin(String pesanSukses) {
         dispose();
-        LoginFrame loginFrame = new LoginFrame(authService, alatService);
+        LoginFrame loginFrame = new LoginFrame(authService, alatService, transaksiService);
         if (pesanSukses != null) {
             loginFrame.tampilkanSukses(pesanSukses);
         }

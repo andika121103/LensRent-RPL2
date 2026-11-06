@@ -8,6 +8,7 @@ import com.lensrent.model.Alat;
 import com.lensrent.model.Kategori;
 import com.lensrent.model.StatusAlat;
 import com.lensrent.repository.AlatRepository;
+import com.lensrent.repository.DetailTransaksiRepository;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,13 +18,15 @@ import org.junit.jupiter.api.Test;
 class AlatServiceTest {
 
     private AlatRepository repository;
+    private DetailTransaksiRepository detailRepository;
     private AlatService alatService;
 
     @BeforeEach
     void siapkan() {
         repository = mock(AlatRepository.class);
         when(repository.save(any(Alat.class))).thenAnswer(i -> i.getArgument(0));
-        alatService = new AlatService(repository);
+        detailRepository = mock(DetailTransaksiRepository.class);
+        alatService = new AlatService(repository, detailRepository);
     }
 
     private Alat alat(String nama, Kategori kategori, String merek, int stok, StatusAlat status) {
@@ -102,5 +105,12 @@ class AlatServiceTest {
     void hapusMemanggilRepository() {
         alatService.hapus(5L);
         verify(repository).deleteById(5L);
+    }
+
+    @Test
+    void hapusAlatYangPernahDisewaDitolak() {
+        when(detailRepository.existsByAlatId(5L)).thenReturn(true);
+        assertThrows(IllegalArgumentException.class, () -> alatService.hapus(5L));
+        verify(repository, never()).deleteById(any());
     }
 }

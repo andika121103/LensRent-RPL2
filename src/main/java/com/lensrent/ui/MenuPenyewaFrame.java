@@ -2,6 +2,7 @@ package com.lensrent.ui;
 
 import com.lensrent.service.AlatService;
 import com.lensrent.service.AuthService;
+import com.lensrent.service.TransaksiService;
 import com.lensrent.session.Sesi;
 import java.awt.BorderLayout;
 import java.util.LinkedHashMap;
@@ -12,7 +13,7 @@ import javax.swing.JPanel;
 /** Halaman utama penyewa. Area tengah berganti sesuai menu sidebar. */
 public class MenuPenyewaFrame extends JFrame {
 
-    public MenuPenyewaFrame(AuthService authService, AlatService alatService) {
+    public MenuPenyewaFrame(AuthService authService, AlatService alatService, TransaksiService transaksiService) {
         super("LensRent - Menu Penyewa");
 
         JPanel konten = new JPanel(new BorderLayout());
@@ -20,11 +21,11 @@ public class MenuPenyewaFrame extends JFrame {
 
         // null = halaman dibuat di tahap berikutnya (tombol menu nonaktif)
         Map<String, Runnable> menu = new LinkedHashMap<>();
-        menu.put("Katalog & Cek Ketersediaan", () -> Tema.gantiIsi(konten, new KatalogPanel(alatService)));
+        menu.put("Katalog & Cek Ketersediaan", () -> Tema.gantiIsi(konten, new KatalogPanel(alatService, transaksiService)));
         menu.put("Riwayat Sewa & Denda", null);
 
         JPanel isi = new JPanel(new BorderLayout());
-        isi.add(new Sidebar(this, authService, alatService, Sesi.getPenggunaAktif(), menu), BorderLayout.WEST);
+        isi.add(new Sidebar(this, authService, alatService, transaksiService, Sesi.getPenggunaAktif(), menu), BorderLayout.WEST);
         isi.add(konten, BorderLayout.CENTER);
         setContentPane(isi);
 

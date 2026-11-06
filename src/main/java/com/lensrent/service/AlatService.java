@@ -4,6 +4,7 @@ import com.lensrent.model.Alat;
 import com.lensrent.model.Kategori;
 import com.lensrent.model.StatusAlat;
 import com.lensrent.repository.AlatRepository;
+import com.lensrent.repository.DetailTransaksiRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,9 +20,11 @@ public class AlatService {
     private static final String POLA_ANGKA = "\\d{1,9}";
 
     private final AlatRepository alatRepository;
+    private final DetailTransaksiRepository detailTransaksiRepository;
 
-    public AlatService(AlatRepository alatRepository) {
+    public AlatService(AlatRepository alatRepository, DetailTransaksiRepository detailTransaksiRepository) {
         this.alatRepository = alatRepository;
+        this.detailTransaksiRepository = detailTransaksiRepository;
     }
 
     public List<Alat> semua() {
@@ -72,9 +75,13 @@ public class AlatService {
         return alatRepository.save(alat);
     }
 
-    // shortcut: hapus langsung; saat tabel transaksi dibuat (Tahap 3), alat yang pernah disewa perlu ditolak/dinonaktifkan
+    /** Alat yang pernah disewa tidak boleh dihapus agar riwayat transaksi tetap utuh. */
     @Transactional
     public void hapus(Long id) {
+        if (detailTransaksiRepository.existsByAlatId(id)) {
+            throw new IllegalArgumentException("Alat ini pernah disewa sehingga tidak bisa dihapus. "
+                    + "Ubah statusnya menjadi Tidak Tersedia.");
+        }
         alatRepository.deleteById(id);
     }
 

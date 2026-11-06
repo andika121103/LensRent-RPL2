@@ -2,6 +2,7 @@ package com.lensrent.ui;
 
 import com.lensrent.model.Alat;
 import com.lensrent.service.AlatService;
+import com.lensrent.service.TransaksiService;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.util.List;
@@ -18,13 +19,15 @@ import javax.swing.table.DefaultTableModel;
 public class DataAlatPanel extends JPanel {
 
     private final AlatService alatService;
-    private final JTable tabel = Tema.tabel("Nama", "Kategori", "Merek", "Harga/Hari", "Stok", "Status");
+    private final TransaksiService transaksiService;
+    private final JTable tabel = Tema.tabel("Nama", "Kategori", "Merek", "Harga/Hari", "Jumlah Stok", "Stok Tersedia", "Status");
     /** Urutan sama dengan baris tabel, untuk mengambil alat yang dipilih. */
     private List<Alat> daftarAlat = List.of();
 
-    public DataAlatPanel(AlatService alatService) {
+    public DataAlatPanel(AlatService alatService, TransaksiService transaksiService) {
         super(new BorderLayout(0, 16));
         this.alatService = alatService;
+        this.transaksiService = transaksiService;
         setBackground(Tema.KREM);
         setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
 
@@ -65,7 +68,8 @@ public class DataAlatPanel extends JPanel {
         model.setRowCount(0);
         for (Alat alat : daftarAlat) {
             model.addRow(new Object[] {alat.getNama(), alat.getKategori(), alat.getMerek(),
-                Tema.rupiah(alat.getHargaPerHari()), alat.getStok(), alat.getStatus()});
+                Tema.rupiah(alat.getHargaPerHari()), alat.getStok(),
+                transaksiService.stokTersediaHariIni(alat), alat.getStatus()});
         }
     }
 
@@ -94,8 +98,12 @@ public class DataAlatPanel extends JPanel {
                 "Hapus \"" + alat.getNama() + "\" dari data alat?", "Hapus Alat",
                 JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (jawaban == JOptionPane.YES_OPTION) {
-            alatService.hapus(alat.getId());
-            muat();
+            try {
+                alatService.hapus(alat.getId());
+                muat();
+            } catch (IllegalArgumentException ex) {
+                JOptionPane.showMessageDialog(this, ex.getMessage(), "Hapus Alat", JOptionPane.WARNING_MESSAGE);
+            }
         }
     }
 }

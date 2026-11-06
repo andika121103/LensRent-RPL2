@@ -4,6 +4,7 @@ import com.lensrent.model.Pengguna;
 import com.lensrent.model.Role;
 import com.lensrent.service.AlatService;
 import com.lensrent.service.AuthService;
+import com.lensrent.service.TransaksiService;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Cursor;
@@ -22,8 +23,8 @@ import javax.swing.JPanel;
 public class Sidebar extends JPanel {
 
     /** daftarMenu: nama menu -> aksi saat diklik; aksi null = menu belum dibuat (nonaktif). */
-    public Sidebar(JFrame frame, AuthService authService, AlatService alatService, Pengguna pengguna,
-                   Map<String, Runnable> daftarMenu) {
+    public Sidebar(JFrame frame, AuthService authService, AlatService alatService, TransaksiService transaksiService,
+                   Pengguna pengguna, Map<String, Runnable> daftarMenu) {
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBackground(Tema.HITAM);
         setPreferredSize(new Dimension(260, 0));
@@ -59,7 +60,7 @@ public class Sidebar extends JPanel {
 
         JButton tombolLogout = Tema.tombolUtama("Logout");
         tombolLogout.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        tombolLogout.addActionListener(e -> new KonfirmasiLogoutDialog(frame, authService, alatService).setVisible(true));
+        tombolLogout.addActionListener(e -> new KonfirmasiLogoutDialog(frame, authService, alatService, transaksiService).setVisible(true));
         add(tombolLogout);
     }
 
