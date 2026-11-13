@@ -2,6 +2,7 @@ package com.lensrent.ui;
 
 import com.lensrent.service.AlatService;
 import com.lensrent.service.AuthService;
+import com.lensrent.service.PembayaranService;
 import com.lensrent.service.TransaksiService;
 import com.lensrent.session.Sesi;
 import java.awt.BorderLayout;
@@ -17,7 +18,7 @@ import javax.swing.JPanel;
 public class KonfirmasiLogoutDialog extends JDialog {
 
     public KonfirmasiLogoutDialog(JFrame frameAktif, AuthService authService, AlatService alatService,
-                                  TransaksiService transaksiService) {
+                                  TransaksiService transaksiService, PembayaranService pembayaranService) {
         super(frameAktif, "Logout", true); // true = modal
 
         JLabel judul = new JLabel("Keluar dari LensRent?");
@@ -37,7 +38,7 @@ public class KonfirmasiLogoutDialog extends JDialog {
             Sesi.kosongkan();
             dispose();
             frameAktif.dispose();
-            new LoginFrame(authService, alatService, transaksiService).setVisible(true);
+            new LoginFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
         });
 
         JPanel teksPanel = new JPanel(new BorderLayout(0, 8));

@@ -4,6 +4,7 @@ import com.lensrent.model.Pengguna;
 import com.lensrent.model.Role;
 import com.lensrent.service.AlatService;
 import com.lensrent.service.AuthService;
+import com.lensrent.service.PembayaranService;
 import com.lensrent.service.TransaksiService;
 import com.lensrent.session.Sesi;
 import java.awt.Font;
@@ -21,16 +22,18 @@ public class LoginFrame extends JFrame {
     private final AuthService authService;
     private final AlatService alatService;
     private final TransaksiService transaksiService;
+    private final PembayaranService pembayaranService;
 
     private final JTextField fieldUsername = new JTextField();
     private final JPasswordField fieldPassword = new JPasswordField();
     private final JLabel labelPesan = Tema.labelPesan();
 
-    public LoginFrame(AuthService authService, AlatService alatService, TransaksiService transaksiService) {
+    public LoginFrame(AuthService authService, AlatService alatService, TransaksiService transaksiService, PembayaranService pembayaranService) {
         super("LensRent - Masuk");
         this.authService = authService;
         this.alatService = alatService;
         this.transaksiService = transaksiService;
+        this.pembayaranService = pembayaranService;
 
         JPanel kartu = Tema.kartuForm();
         kartu.add(Tema.judul("Masuk"));
@@ -81,9 +84,9 @@ public class LoginFrame extends JFrame {
             dispose();
 
             if (pengguna.getRole() == Role.ADMIN) {
-                new DashboardAdminFrame(authService, alatService, transaksiService).setVisible(true);
+                new DashboardAdminFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
             } else {
-                new MenuPenyewaFrame(authService, alatService, transaksiService).setVisible(true);
+                new MenuPenyewaFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
             }
         } catch (IllegalArgumentException ex) {
             Tema.tampilkanError(labelPesan, ex.getMessage());
@@ -93,6 +96,6 @@ public class LoginFrame extends JFrame {
 
     private void bukaDaftar() {
         dispose();
-        new DaftarAkunFrame(authService, alatService, transaksiService).setVisible(true);
+        new DaftarAkunFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
     }
 }

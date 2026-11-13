@@ -3,6 +3,7 @@ package com.lensrent;
 import com.formdev.flatlaf.FlatLightLaf;
 import com.lensrent.service.AlatService;
 import com.lensrent.service.AuthService;
+import com.lensrent.service.PembayaranService;
 import com.lensrent.service.TransaksiService;
 import com.lensrent.ui.LoginFrame;
 import com.lensrent.ui.Tema;
@@ -24,12 +25,13 @@ public class LensRentApplication {
         AuthService authService = context.getBean(AuthService.class);
         AlatService alatService = context.getBean(AlatService.class);
         TransaksiService transaksiService = context.getBean(TransaksiService.class);
+        PembayaranService pembayaranService = context.getBean(PembayaranService.class);
 
         // Semua kode Swing dijalankan di Event Dispatch Thread
         SwingUtilities.invokeLater(() -> {
             FlatLightLaf.setup();
             UIManager.put("defaultFont", Tema.font(java.awt.Font.PLAIN, 14));
-            new LoginFrame(authService, alatService, transaksiService).setVisible(true);
+            new LoginFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
         });
     }
 }
