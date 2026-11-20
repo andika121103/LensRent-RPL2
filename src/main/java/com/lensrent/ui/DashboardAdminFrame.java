@@ -23,9 +23,10 @@ public class DashboardAdminFrame extends JFrame {
         // null = halaman dibuat di tahap berikutnya (tombol menu nonaktif)
         Map<String, Runnable> menu = new LinkedHashMap<>();
         menu.put("Data Alat", () -> Tema.gantiIsi(konten, new DataAlatPanel(alatService, transaksiService)));
-        menu.put("Konfirmasi Pembayaran", () -> Tema.gantiIsi(konten, new KonfirmasiPembayaranPanel(pembayaranService)));
+        menu.put("Pembayaran", () -> Tema.gantiIsi(konten, new KonfirmasiPembayaranPanel(pembayaranService)));
         menu.put("Transaksi Sewa", () -> Tema.gantiIsi(konten, new TransaksiSewaPanel(transaksiService, alatService)));
         menu.put("Pengembalian & Denda", null);
+        menu.put("Laporan", () -> Tema.gantiIsi(konten, new LaporanPanel(pembayaranService)));
 
         JPanel isi = new JPanel(new BorderLayout());
         isi.add(new Sidebar(this, authService, alatService, transaksiService, pembayaranService, Sesi.getPenggunaAktif(), menu), BorderLayout.WEST);

@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/** Satu kali bayar untuk satu transaksi. Satu transaksi bisa dibayar beberapa kali (DP lalu pelunasan). */
+/** Pembayaran di toko (tunai atau transfer), langsung lunas sebesar sisa tagihan. */
 @Entity
 @Table(name = "pembayaran")
 public class Pembayaran {
@@ -28,10 +28,6 @@ public class Pembayaran {
     @Column(nullable = false)
     private MetodeBayar metode;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private StatusPembayaran status = StatusPembayaran.DITERIMA;
-
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -54,8 +50,6 @@ public class Pembayaran {
     public MetodeBayar getMetode() { return metode; }
     public void setMetode(MetodeBayar metode) { this.metode = metode; }
 
-    public StatusPembayaran getStatus() { return status; }
-    public void setStatus(StatusPembayaran status) { this.status = status; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
 }

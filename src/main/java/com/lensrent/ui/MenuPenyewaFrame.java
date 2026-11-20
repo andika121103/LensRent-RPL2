@@ -20,12 +20,9 @@ public class MenuPenyewaFrame extends JFrame {
         JPanel konten = new JPanel(new BorderLayout());
         konten.setBackground(Tema.KREM);
 
-        // null = halaman dibuat di tahap berikutnya (tombol menu nonaktif)
+        // Sewa dan bayar hanya di toko; penyewa cukup melihat katalog
         Map<String, Runnable> menu = new LinkedHashMap<>();
         menu.put("Katalog & Cek Ketersediaan", () -> Tema.gantiIsi(konten, new KatalogPanel(alatService, transaksiService)));
-        menu.put("Pesan Sewa", () -> Tema.gantiIsi(konten, new PesanSewaPanel(alatService, pembayaranService)));
-        menu.put("Status Pembayaran", () -> Tema.gantiIsi(konten, new StatusPembayaranPanel(pembayaranService)));
-        menu.put("Riwayat Sewa & Denda", null);
 
         JPanel isi = new JPanel(new BorderLayout());
         isi.add(new Sidebar(this, authService, alatService, transaksiService, pembayaranService, Sesi.getPenggunaAktif(), menu), BorderLayout.WEST);

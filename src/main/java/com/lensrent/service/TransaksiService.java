@@ -25,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class TransaksiService {
 
+    private static final String POLA_NO_HP = "\\d{10,13}"; // sama dengan AuthService
+    private static final String POLA_NO_KTP = "\\d{16}";
+
     private final TransaksiRepository transaksiRepository;
     private final DetailTransaksiRepository detailRepository;
     private final AlatRepository alatRepository;
@@ -40,10 +43,6 @@ public class TransaksiService {
 
     public List<Transaksi> semua() {
         return transaksiRepository.semuaLengkap();
-    }
-
-    public List<Pengguna> penyewaAktif() {
-        return penggunaRepository.findByRoleAndAktifTrueOrderByNamaAsc(Role.USER);
     }
 
     /**
@@ -82,18 +81,39 @@ public class TransaksiService {
     }
 
     // shortcut: cek sisa lalu simpan tanpa mengunci baris; aman untuk satu admin di satu PC, tambah kunci PESSIMISTIC_WRITE jika dipakai bersamaan
-    /** jumlahPerAlat: id alat -> jumlah unit yang disewa. */
+    /**
+     * Sewa di toko. Data penyewa diisi admin; penyewa dengan No HP yang sama dipakai ulang (No KTP diperbarui),
+     * jika belum ada dibuat sebagai penyewa tanpa akun. jumlahPerAlat: id alat -> jumlah unit yang disewa.
+     */
     @Transactional
-    public Transaksi simpan(Long penyewaId, LocalDate sewa, LocalDate kembali, Map<Long, Integer> jumlahPerAlat) {
-        if (penyewaId == null) {
-            throw new IllegalArgumentException("Pilih penyewa terlebih dahulu.");
+    public Transaksi simpan(String nama, String noHp, String noKtp, LocalDate sewa, LocalDate kembali,
+                            Map<Long, Integer> jumlahPerAlat) {
+        if (nama == null || nama.isBlank() || noHp == null || noHp.isBlank() || noKtp == null || noKtp.isBlank()) {
+            throw new IllegalArgumentException("Nama, No. HP, dan No. KTP penyewa wajib diisi.");
+        }
+        if (nama.trim().length() > 100) {
+            throw new IllegalArgumentException("Nama penyewa maksimal 100 karakter.");
+        }
+        if (!noHp.trim().matches(POLA_NO_HP)) {
+            throw new IllegalArgumentException("No. HP hanya boleh angka, 10 sampai 13 digit.");
+        }
+        if (!noKtp.trim().matches(POLA_NO_KTP)) {
+            throw new IllegalArgumentException("No. KTP harus 16 digit angka.");
         }
         periksaTanggal(sewa, kembali);
         if (jumlahPerAlat == null || jumlahPerAlat.isEmpty()) {
             throw new IllegalArgumentException("Tambahkan minimal satu alat.");
         }
-        Pengguna penyewa = penggunaRepository.findById(penyewaId)
-                .orElseThrow(() -> new IllegalArgumentException("Penyewa tidak ditemukan."));
+        Pengguna penyewa = penggunaRepository.findFirstByRoleAndNoHpOrderByIdAsc(Role.USER, noHp.trim())
+                .orElseGet(() -> {
+                    Pengguna baru = new Pengguna();
+                    baru.setNama(nama.trim());
+                    baru.setNoHp(noHp.trim());
+                    baru.setRole(Role.USER);
+                    return baru;
+                });
+        penyewa.setNoKtp(noKtp.trim());
+        penyewa = penggunaRepository.save(penyewa);
 
         Transaksi transaksi = new Transaksi();
         transaksi.setPenyewa(penyewa);

@@ -8,14 +8,13 @@ import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
-/** Halaman admin: status bayar semua transaksi, konfirmasi/tolak transfer online, catat pembayaran di toko. */
+/** Halaman admin: status bayar semua transaksi, catat pembayaran di toko, cetak nota. */
 public class KonfirmasiPembayaranPanel extends JPanel {
 
     private final PembayaranService pembayaranService;
@@ -30,19 +29,17 @@ public class KonfirmasiPembayaranPanel extends JPanel {
         setBackground(Tema.KREM);
         setBorder(BorderFactory.createEmptyBorder(28, 32, 28, 32));
 
-        JButton tombolKonfirmasi = Tema.tombolUtama("Konfirmasi Transfer");
-        tombolKonfirmasi.setPreferredSize(null); // ukuran mengikuti teks, bukan selebar form
-        JButton tombolTolak = new JButton("Tolak Transfer");
-        JButton tombolCatat = new JButton("Catat Bayar di Toko");
+        JButton tombolCatat = Tema.tombolUtama("Catat Bayar di Toko");
+        tombolCatat.setPreferredSize(null); // ukuran mengikuti teks, bukan selebar form
+        JButton tombolNota = new JButton("Cetak Nota");
         JPanel tombol = new JPanel();
         tombol.setOpaque(false);
-        tombol.add(tombolKonfirmasi);
-        tombol.add(tombolTolak);
         tombol.add(tombolCatat);
+        tombol.add(tombolNota);
 
         JPanel atas = new JPanel(new BorderLayout());
         atas.setOpaque(false);
-        atas.add(Tema.judul("Konfirmasi Pembayaran"), BorderLayout.WEST);
+        atas.add(Tema.judul("Pembayaran"), BorderLayout.WEST);
         atas.add(tombol, BorderLayout.EAST);
         atas.add(labelPesan, BorderLayout.SOUTH);
 
@@ -60,41 +57,13 @@ public class KonfirmasiPembayaranPanel extends JPanel {
             new FormPembayaranDialog(SwingUtilities.getWindowAncestor(this), pembayaranService, t).setVisible(true);
             muat();
         });
-        tombolKonfirmasi.addActionListener(e -> {
+        tombolNota.addActionListener(e -> {
             Transaksi t = terpilih();
-            if (t == null) {
-                return;
-            }
-            try {
-                pembayaranService.konfirmasi(t.getId());
-                muat();
-                Tema.tampilkanSukses(labelPesan, "Transfer transaksi No " + t.getId() + " dikonfirmasi.");
-            } catch (IllegalArgumentException ex) {
-                Tema.tampilkanError(labelPesan, ex.getMessage());
+            if (t != null) {
+                labelPesan.setVisible(false);
+                Cetak.tampilkan(labelPesan, () -> pembayaranService.nota(t.getId()));
             }
         });
-        tombolTolak.addActionListener(e -> {
-            Transaksi t = terpilih();
-            if (t == null) {
-                return;
-            }
-            int jawab = JOptionPane.showConfirmDialog(this,
-                    "Tolak transfer transaksi No " + t.getId() + "? Pesanan online tanpa pembayaran lain akan dibatalkan.",
-                    "Tolak Transfer", JOptionPane.YES_NO_OPTION);
-            if (jawab != JOptionPane.YES_OPTION) {
-                return;
-            }
-            try {
-                boolean batal = pembayaranService.tolak(t.getId());
-                muat();
-                Tema.tampilkanSukses(labelPesan, batal
-                        ? "Transfer ditolak, pesanan No " + t.getId() + " dibatalkan dan alat tersedia lagi."
-                        : "Transfer ditolak.");
-            } catch (IllegalArgumentException ex) {
-                Tema.tampilkanError(labelPesan, ex.getMessage());
-            }
-        });
-
         muat();
     }
 

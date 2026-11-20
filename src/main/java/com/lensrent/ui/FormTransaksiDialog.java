@@ -1,7 +1,6 @@
 package com.lensrent.ui;
 
 import com.lensrent.model.Alat;
-import com.lensrent.model.Pengguna;
 import com.lensrent.service.AlatService;
 import com.lensrent.service.TransaksiService;
 import java.awt.Component;
@@ -20,14 +19,17 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.table.DefaultTableModel;
 
-/** Form catat transaksi sewa: satu penyewa, rentang tanggal, satu atau lebih alat. */
+/** Form catat sewa di toko: data penyewa (nama/HP/KTP), rentang tanggal, satu atau lebih alat. */
 public class FormTransaksiDialog extends JDialog {
 
     private final TransaksiService transaksiService;
-    private final JComboBox<Pengguna> pilihPenyewa = new JComboBox<>();
+    private final JTextField fieldNama = new JTextField();
+    private final JTextField fieldNoHp = new JTextField();
+    private final JTextField fieldNoKtp = new JTextField();
     private final JSpinner fieldSewa = Tema.pilihTanggal(0);
     private final JSpinner fieldKembali = Tema.pilihTanggal(1);
     private final JComboBox<Alat> pilihAlat = new JComboBox<>();
@@ -42,8 +44,6 @@ public class FormTransaksiDialog extends JDialog {
         super(pemilik, "Catat Transaksi", ModalityType.APPLICATION_MODAL);
         this.transaksiService = transaksiService;
 
-        transaksiService.penyewaAktif().forEach(pilihPenyewa::addItem);
-        Tema.teksDropdown(pilihPenyewa, p -> p.getNama() + " (" + p.getUsername() + ")");
         alatService.semua().stream().filter(Alat::isBisaDisewa).forEach(pilihAlat::addItem);
         Tema.teksDropdown(pilihAlat, a -> a.getNama() + " - " + Tema.rupiah(a.getHargaPerHari()) + "/hari");
 
@@ -51,7 +51,9 @@ public class FormTransaksiDialog extends JDialog {
         kartu.add(Tema.judul("Catat Transaksi"));
         kartu.add(Box.createVerticalStrut(16));
 
-        Tema.tambahField(kartu, "Penyewa", pilihPenyewa);
+        Tema.tambahField(kartu, "Nama Penyewa", fieldNama);
+        Tema.tambahField(kartu, "No. HP", fieldNoHp);
+        Tema.tambahField(kartu, "No. KTP", fieldNoKtp);
         Tema.tambahField(kartu, "Tanggal Sewa", fieldSewa);
         Tema.tambahField(kartu, "Tanggal Kembali", fieldKembali);
         Tema.tambahField(kartu, "Alat", pilihAlat);
@@ -144,10 +146,9 @@ public class FormTransaksiDialog extends JDialog {
 
     private void simpan() {
         try {
-            Pengguna penyewa = (Pengguna) pilihPenyewa.getSelectedItem();
             Map<Long, Integer> jumlahPerAlat = new LinkedHashMap<>(); // urutan sesuai yang diisi admin
             daftarItem.forEach((alat, jumlah) -> jumlahPerAlat.put(alat.getId(), jumlah));
-            transaksiService.simpan(penyewa == null ? null : penyewa.getId(),
+            transaksiService.simpan(fieldNama.getText(), fieldNoHp.getText(), fieldNoKtp.getText(),
                     Tema.nilaiTanggal(fieldSewa), Tema.nilaiTanggal(fieldKembali), jumlahPerAlat);
             dispose();
         } catch (IllegalArgumentException ex) {

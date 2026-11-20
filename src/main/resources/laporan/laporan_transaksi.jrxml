@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Laporan transaksi admin per periode tanggal sewa (A4). Dibuat untuk Jaspersoft Studio / JasperReports 6.21.5. Warna mengikuti Tema aplikasi. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="laporan_transaksi" pageWidth="595" pageHeight="842" columnWidth="535" leftMargin="30" rightMargin="30" topMargin="30" bottomMargin="30" whenNoDataType="AllSectionsNoDetail">
+	<!-- pdfFontName: agar huruf tebal juga muncul di PDF -->
+	<style name="Dasar" isDefault="true" fontName="SansSerif" fontSize="9" forecolor="#141211" pdfFontName="Helvetica"/>
+	<style name="Tebal" style="Dasar" isBold="true" pdfFontName="Helvetica-Bold"/>
+	<style name="Label" style="Tebal" fontSize="7" forecolor="#6B6358"/>
+	<style name="Kepala" style="Tebal" mode="Opaque" forecolor="#FFFFFF" backcolor="#141211"/>
+	<style name="Kartu" mode="Opaque" backcolor="#F4F1EA">
+		<box><pen lineWidth="0.5" lineColor="#DDD6C8"/></box>
+	</style>
+	<style name="Baris" mode="Opaque" backcolor="#FFFFFF">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+			<style backcolor="#F4F1EA"/>
+		</conditionalStyle>
+	</style>
+	<style name="Status" style="Tebal" forecolor="#8F1F1F">
+		<conditionalStyle>
+			<conditionExpression><![CDATA["Lunas".equals($F{status})]]></conditionExpression>
+			<style forecolor="#24533A"/>
+		</conditionalStyle>
+	</style>
+	<parameter name="tanggalAwal" class="java.sql.Date"/>
+	<parameter name="tanggalAkhir" class="java.sql.Date"/>
+	<queryString language="SQL">
+		<![CDATA[SELECT x.*, CASE WHEN x.dibayar >= x.total THEN 'Lunas' ELSE 'Belum Bayar' END AS status
+FROM (SELECT t.id, p.nama AS penyewa, t.tanggal_sewa, t.tanggal_kembali, t.total,
+             COALESCE((SELECT SUM(b.jumlah) FROM pembayaran b WHERE b.transaksi_id = t.id), 0) AS dibayar
+      FROM transaksi t
+      JOIN pengguna p ON p.id = t.penyewa_id
+      WHERE t.tanggal_sewa BETWEEN $P{tanggalAwal} AND $P{tanggalAkhir}) x
+ORDER BY x.tanggal_sewa, x.id]]>
+	</queryString>
+	<field name="id" class="java.lang.Long"/>
+	<field name="penyewa" class="java.lang.String"/>
+	<field name="tanggal_sewa" class="java.sql.Date"/>
+	<field name="tanggal_kembali" class="java.sql.Date"/>
+	<field name="total" class="java.lang.Long"/>
+	<field name="dibayar" class="java.math.BigDecimal"/>
+	<field name="status" class="java.lang.String"/>
+	<variable name="jumlahTotal" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[java.math.BigDecimal.valueOf($F{total})]]></variableExpression>
+		<initialValueExpression><![CDATA[java.math.BigDecimal.ZERO]]></initialValueExpression>
+	</variable>
+	<variable name="jumlahDibayar" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{dibayar}]]></variableExpression>
+		<initialValueExpression><![CDATA[java.math.BigDecimal.ZERO]]></initialValueExpression>
+	</variable>
+	<title>
+		<band height="148">
+			<frame>
+				<reportElement mode="Opaque" x="0" y="0" width="535" height="58" backcolor="#141211"/>
+				<staticText>
+					<reportElement style="Tebal" x="16" y="5" width="220" height="30" forecolor="#FFFFFF"/>
+					<textElement><font size="20"/></textElement>
+					<text><![CDATA[LensRent]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="Dasar" x="16" y="35" width="220" height="14" forecolor="#D8D2C6"/>
+					<textElement><font size="8"/></textElement>
+					<text><![CDATA[Sewa Kamera & Perlengkapan Foto]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="Tebal" x="250" y="12" width="270" height="18" forecolor="#FFFFFF"/>
+					<textElement textAlignment="Right"><font size="13"/></textElement>
+					<text><![CDATA[LAPORAN TRANSAKSI SEWA]]></text>
+				</staticText>
+				<textField>
+					<reportElement style="Dasar" x="250" y="34" width="270" height="14" forecolor="#D8D2C6"/>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression><![CDATA["Periode tanggal sewa " + new java.text.SimpleDateFormat("dd-MM-yyyy").format($P{tanggalAwal}) + " s/d " + new java.text.SimpleDateFormat("dd-MM-yyyy").format($P{tanggalAkhir})]]></textFieldExpression>
+				</textField>
+			</frame>
+			<rectangle>
+				<reportElement x="0" y="58" width="535" height="3" forecolor="#B8241C" backcolor="#B8241C"/>
+			</rectangle>
+			<!-- Kartu ringkasan: nilainya baru diketahui di akhir laporan (evaluationTime="Report") -->
+			<frame>
+				<reportElement style="Kartu" x="0" y="74" width="127" height="50"/>
+				<staticText><reportElement style="Label" x="10" y="8" width="110" height="11"/><text><![CDATA[JUMLAH TRANSAKSI]]></text></staticText>
+				<textField evaluationTime="Report"><reportElement style="Tebal" x="10" y="22" width="110" height="20"/><textElement><font size="14"/></textElement><textFieldExpression><![CDATA[$V{REPORT_COUNT}]]></textFieldExpression></textField>
+			</frame>
+			<frame>
+				<reportElement style="Kartu" x="136" y="74" width="127" height="50"/>
+				<staticText><reportElement style="Label" x="10" y="8" width="110" height="11"/><text><![CDATA[NILAI SEWA]]></text></staticText>
+				<textField evaluationTime="Report" pattern="Rp #,##0"><reportElement style="Tebal" x="10" y="22" width="110" height="20"/><textElement><font size="14"/></textElement><textFieldExpression><![CDATA[$V{jumlahTotal}]]></textFieldExpression></textField>
+			</frame>
+			<frame>
+				<reportElement style="Kartu" x="272" y="74" width="127" height="50"/>
+				<staticText><reportElement style="Label" x="10" y="8" width="110" height="11"/><text><![CDATA[PENDAPATAN DITERIMA]]></text></staticText>
+				<textField evaluationTime="Report" pattern="Rp #,##0"><reportElement style="Tebal" x="10" y="22" width="110" height="20" forecolor="#24533A"/><textElement><font size="14"/></textElement><textFieldExpression><![CDATA[$V{jumlahDibayar}]]></textFieldExpression></textField>
+			</frame>
+			<frame>
+				<reportElement style="Kartu" x="408" y="74" width="127" height="50"/>
+				<staticText><reportElement style="Label" x="10" y="8" width="110" height="11"/><text><![CDATA[BELUM DIBAYAR]]></text></staticText>
+				<textField evaluationTime="Report" pattern="Rp #,##0"><reportElement style="Tebal" x="10" y="22" width="110" height="20" forecolor="#8F1F1F"/><textElement><font size="14"/></textElement><textFieldExpression><![CDATA[$V{jumlahTotal}.subtract($V{jumlahDibayar})]]></textFieldExpression></textField>
+			</frame>
+			<textField>
+				<reportElement style="Dasar" x="0" y="130" width="535" height="12" forecolor="#6B6358"/>
+				<textElement textAlignment="Right"><font size="7"/></textElement>
+				<textFieldExpression><![CDATA["Dicetak " + new java.text.SimpleDateFormat("dd-MM-yyyy HH:mm").format(new java.util.Date())]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="24">
+			<staticText><reportElement style="Kepala" x="0" y="0" width="35" height="24"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[No]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="35" y="0" width="150" height="24"/><box leftPadding="6"/><textElement verticalAlignment="Middle"/><text><![CDATA[Penyewa]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="185" y="0" width="65" height="24"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Tgl Sewa]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="250" y="0" width="65" height="24"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Tgl Kembali]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="315" y="0" width="75" height="24"/><box rightPadding="6"/><textElement textAlignment="Right" verticalAlignment="Middle"/><text><![CDATA[Total]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="390" y="0" width="75" height="24"/><box rightPadding="6"/><textElement textAlignment="Right" verticalAlignment="Middle"/><text><![CDATA[Dibayar]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="465" y="0" width="70" height="24"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Status]]></text></staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="22">
+			<frame>
+				<reportElement style="Baris" x="0" y="0" width="535" height="22"/>
+				<box><bottomPen lineWidth="0.5" lineColor="#DDD6C8"/></box>
+				<textField><reportElement style="Dasar" x="0" y="0" width="35" height="22"/><box topPadding="5"/><textElement textAlignment="Center"/><textFieldExpression><![CDATA[$F{id}]]></textFieldExpression></textField>
+				<textField textAdjust="StretchHeight"><reportElement style="Dasar" x="35" y="0" width="150" height="22"/><box topPadding="5" leftPadding="6" bottomPadding="5"/><textFieldExpression><![CDATA[$F{penyewa}]]></textFieldExpression></textField>
+				<textField pattern="dd-MM-yyyy"><reportElement style="Dasar" x="185" y="0" width="65" height="22"/><box topPadding="5"/><textElement textAlignment="Center"/><textFieldExpression><![CDATA[$F{tanggal_sewa}]]></textFieldExpression></textField>
+				<textField pattern="dd-MM-yyyy"><reportElement style="Dasar" x="250" y="0" width="65" height="22"/><box topPadding="5"/><textElement textAlignment="Center"/><textFieldExpression><![CDATA[$F{tanggal_kembali}]]></textFieldExpression></textField>
+				<textField pattern="Rp #,##0"><reportElement style="Dasar" x="315" y="0" width="75" height="22"/><box topPadding="5" rightPadding="6"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{total}]]></textFieldExpression></textField>
+				<textField pattern="Rp #,##0"><reportElement style="Dasar" x="390" y="0" width="75" height="22"/><box topPadding="5" rightPadding="6"/><textElement textAlignment="Right"/><textFieldExpression><![CDATA[$F{dibayar}]]></textFieldExpression></textField>
+				<textField><reportElement style="Status" x="465" y="0" width="70" height="22"/><box topPadding="5"/><textElement textAlignment="Center"/><textFieldExpression><![CDATA[$F{status}]]></textFieldExpression></textField>
+			</frame>
+		</band>
+	</detail>
+	<pageFooter>
+		<band height="26">
+			<line>
+				<reportElement x="0" y="6" width="535" height="1" forecolor="#DDD6C8"/>
+			</line>
+			<staticText>
+				<reportElement style="Dasar" x="0" y="10" width="300" height="12" forecolor="#6B6358"/>
+				<textElement><font size="7"/></textElement>
+				<text><![CDATA[LensRent  -  Laporan Transaksi Sewa]]></text>
+			</staticText>
+			<textField>
+				<reportElement style="Dasar" x="385" y="10" width="125" height="12" forecolor="#6B6358"/>
+				<textElement textAlignment="Right"><font size="7"/></textElement>
+				<textFieldExpression><![CDATA["Halaman " + $V{PAGE_NUMBER} + " dari "]]></textFieldExpression>
+			</textField>
+			<textField evaluationTime="Report">
+				<reportElement style="Dasar" x="510" y="10" width="25" height="12" forecolor="#6B6358"/>
+				<textElement><font size="7"/></textElement>
+				<textFieldExpression><![CDATA[" " + $V{PAGE_NUMBER}]]></textFieldExpression>
+			</textField>
+		</band>
+	</pageFooter>
+	<summary>
+		<band height="30">
+			<frame>
+				<reportElement mode="Opaque" x="0" y="4" width="535" height="24" backcolor="#141211"/>
+				<staticText><reportElement style="Tebal" x="41" y="0" width="200" height="24" forecolor="#FFFFFF"/><textElement verticalAlignment="Middle"/><text><![CDATA[TOTAL]]></text></staticText>
+				<textField pattern="Rp #,##0"><reportElement style="Tebal" x="300" y="0" width="90" height="24" forecolor="#FFFFFF"/><box rightPadding="6"/><textElement textAlignment="Right" verticalAlignment="Middle"/><textFieldExpression><![CDATA[$V{jumlahTotal}]]></textFieldExpression></textField>
+				<textField pattern="Rp #,##0"><reportElement style="Tebal" x="390" y="0" width="75" height="24" forecolor="#FFFFFF"/><box rightPadding="6"/><textElement textAlignment="Right" verticalAlignment="Middle"/><textFieldExpression><![CDATA[$V{jumlahDibayar}]]></textFieldExpression></textField>
+			</frame>
+		</band>
+	</summary>
+</jasperReport>

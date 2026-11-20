@@ -3,19 +3,29 @@ package com.lensrent.service;
 import com.lensrent.model.MetodeBayar;
 import com.lensrent.model.Pembayaran;
 import com.lensrent.model.StatusBayar;
-import com.lensrent.model.StatusPembayaran;
 import com.lensrent.model.Transaksi;
 import com.lensrent.repository.PembayaranRepository;
 import com.lensrent.repository.TransaksiRepository;
+import java.io.IOException;
+import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.Optional;
+import javax.sql.DataSource;
+import net.sf.jasperreports.engine.JRException;
+import net.sf.jasperreports.engine.JRParameter;
+import net.sf.jasperreports.engine.JasperCompileManager;
+import net.sf.jasperreports.engine.JasperFillManager;
+import net.sf.jasperreports.engine.JasperPrint;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Logika konfirmasi pembayaran. Status bayar tidak disimpan, tetapi dihitung dari jumlah yang sudah dibayar.
+ * Logika pembayaran di toko dan cetak nota/laporan. Status bayar tidak disimpan, tetapi dihitung dari jumlah yang sudah dibayar.
  * Jika input tidak valid, method melempar IllegalArgumentException berisi pesan
  * yang langsung bisa ditampilkan ke pengguna.
  */
@@ -24,13 +34,13 @@ public class PembayaranService {
 
     private final PembayaranRepository pembayaranRepository;
     private final TransaksiRepository transaksiRepository;
-    private final TransaksiService transaksiService;
+    private final DataSource dataSource;
 
     public PembayaranService(PembayaranRepository pembayaranRepository, TransaksiRepository transaksiRepository,
-                             TransaksiService transaksiService) {
+                             DataSource dataSource) {
         this.pembayaranRepository = pembayaranRepository;
         this.transaksiRepository = transaksiRepository;
-        this.transaksiService = transaksiService;
+        this.dataSource = dataSource;
     }
 
     /** Semua transaksi, untuk halaman admin. */
@@ -38,28 +48,12 @@ public class PembayaranService {
         return transaksiRepository.semuaLengkap();
     }
 
-    // shortcut: memuat semua transaksi lalu disaring di memori; cukup untuk satu toko, tambah query per penyewa jika data ribuan
-    /** Transaksi milik satu penyewa, untuk halaman penyewa. */
-    public List<Transaksi> transaksiPenyewa(Long penyewaId) {
-        return transaksiRepository.semuaLengkap().stream()
-                .filter(t -> t.getPenyewa().getId().equals(penyewaId))
-                .toList();
-    }
-
     public long dibayar(Transaksi transaksi) {
         return pembayaranRepository.totalDibayar(transaksi.getId());
     }
 
-    /** Pembayaran online yang belum dicek admin, jika ada. */
-    public Optional<Pembayaran> menunggu(Transaksi transaksi) {
-        return pembayaranRepository.findFirstByTransaksiIdAndStatus(transaksi.getId(), StatusPembayaran.MENUNGGU);
-    }
-
-    /** Teks kolom Status: "Menunggu Konfirmasi" selama ada transfer yang belum dicek, selain itu Belum Bayar/Lunas. */
+    /** Teks kolom Status: Belum Bayar atau Lunas. */
     public String keterangan(Transaksi transaksi) {
-        if (menunggu(transaksi).isPresent()) {
-            return StatusPembayaran.MENUNGGU.toString();
-        }
         return status(transaksi.getTotal(), dibayar(transaksi)).toString();
     }
 
@@ -88,9 +82,6 @@ public class PembayaranService {
             throw new IllegalArgumentException("Pilih metode bayar.");
         }
 
-        if (pembayaranRepository.findFirstByTransaksiIdAndStatus(transaksiId, StatusPembayaran.MENUNGGU).isPresent()) {
-            throw new IllegalArgumentException("Masih ada transfer online yang menunggu konfirmasi. Konfirmasi atau tolak dulu.");
-        }
         long sisa = transaksi.getTotal() - pembayaranRepository.totalDibayar(transaksiId);
         if (sisa <= 0) {
             throw new IllegalArgumentException("Transaksi ini sudah lunas.");
@@ -104,55 +95,38 @@ public class PembayaranService {
         return pembayaranRepository.save(pembayaran);
     }
 
-    /**
-     * Penyewa memesan dari aplikasi lalu menekan "Saya Sudah Transfer": transaksi dibuat lewat TransaksiService
-     * (validasi tanggal dan sisa unit sama seperti di toko) dan transfer sebesar total dicatat menunggu konfirmasi.
-     */
-    @Transactional
-    public Transaksi pesanOnline(Long penyewaId, LocalDate sewa, LocalDate kembali, Map<Long, Integer> jumlahPerAlat) {
-        Transaksi transaksi = transaksiService.simpan(penyewaId, sewa, kembali, jumlahPerAlat);
-        Pembayaran pembayaran = new Pembayaran();
-        pembayaran.setTransaksi(transaksi);
-        pembayaran.setJumlah(transaksi.getTotal());
-        pembayaran.setTanggal(LocalDate.now());
-        pembayaran.setMetode(MetodeBayar.TRANSFER);
-        pembayaran.setStatus(StatusPembayaran.MENUNGGU);
-        pembayaranRepository.save(pembayaran);
-        return transaksi;
-    }
-
-    /** Admin sudah melihat uang masuk di rekening toko. */
-    @Transactional
-    public void konfirmasi(Long transaksiId) {
-        Pembayaran pembayaran = pembayaranMenunggu(transaksiId);
-        long sisa = pembayaran.getTransaksi().getTotal() - pembayaranRepository.totalDibayar(transaksiId);
-        if (pembayaran.getJumlah() > sisa) {
-            throw new IllegalArgumentException("Jumlah transfer melebihi sisa tagihan.");
-        }
-        pembayaran.setStatus(StatusPembayaran.DITERIMA);
-        pembayaranRepository.save(pembayaran);
-    }
-
-    /**
-     * Uang tidak masuk: transfer dihapus. Jika transaksi itu belum punya pembayaran lain (pesanan online),
-     * transaksinya ikut dihapus agar alatnya tersedia lagi. Mengembalikan true jika pesanan dibatalkan.
-     */
-    @Transactional
-    public boolean tolak(Long transaksiId) {
-        Pembayaran pembayaran = pembayaranMenunggu(transaksiId);
-        pembayaranRepository.delete(pembayaran);
-        if (pembayaranRepository.existsByTransaksiId(transaksiId)) {
-            return false;
-        }
-        transaksiRepository.delete(pembayaran.getTransaksi()); // detail ikut terhapus (cascade)
-        return true;
-    }
-
-    private Pembayaran pembayaranMenunggu(Long transaksiId) {
+    /** Nota satu transaksi (laporan/nota_sewa.jrxml): dicetak admin. */
+    public JasperPrint nota(Long transaksiId) {
         if (transaksiId == null) {
             throw new IllegalArgumentException("Pilih transaksi terlebih dahulu.");
         }
-        return pembayaranRepository.findFirstByTransaksiIdAndStatus(transaksiId, StatusPembayaran.MENUNGGU)
-                .orElseThrow(() -> new IllegalArgumentException("Transaksi ini tidak punya transfer yang menunggu konfirmasi."));
+        Map<String, Object> parameter = new HashMap<>();
+        parameter.put("transaksiId", transaksiId);
+        return isiLaporan("nota_sewa.jrxml", parameter);
+    }
+
+    /** Laporan semua transaksi dengan tanggal sewa di antara awal dan akhir (laporan/laporan_transaksi.jrxml). */
+    public JasperPrint laporanTransaksi(LocalDate awal, LocalDate akhir) {
+        if (awal.isAfter(akhir)) {
+            throw new IllegalArgumentException("Tanggal awal tidak boleh setelah tanggal akhir.");
+        }
+        Map<String, Object> parameter = new HashMap<>();
+        parameter.put("tanggalAwal", java.sql.Date.valueOf(awal));
+        parameter.put("tanggalAkhir", java.sql.Date.valueOf(akhir));
+        return isiLaporan("laporan_transaksi.jrxml", parameter);
+    }
+
+    // shortcut: file .jrxml di-compile setiap kali dicetak (±1 detik); simpan .jasper hasil compile jika terasa lambat
+    private JasperPrint isiLaporan(String namaFile, Map<String, Object> parameter) {
+        parameter.put(JRParameter.REPORT_LOCALE, Locale.forLanguageTag("id-ID")); // Rp 25.000, bukan Rp 25,000
+        try (InputStream file = getClass().getResourceAsStream("/laporan/" + namaFile);
+             Connection koneksi = dataSource.getConnection()) {
+            if (file == null) {
+                throw new IllegalStateException("File laporan " + namaFile + " tidak ditemukan.");
+            }
+            return JasperFillManager.fillReport(JasperCompileManager.compileReport(file), parameter, koneksi);
+        } catch (JRException | SQLException | IOException e) {
+            throw new IllegalStateException("Gagal membuat laporan: " + e.getMessage(), e);
+        }
     }
 }

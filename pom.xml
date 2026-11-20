@@ -52,6 +52,20 @@
             <version>3.5.4</version>
         </dependency>
 
+        <!-- Cetak struk & laporan; versi harus sama dengan Jaspersoft Studio 6.21.5 -->
+        <dependency>
+            <groupId>net.sf.jasperreports</groupId>
+            <artifactId>jasperreports</artifactId>
+            <version>6.21.5</version>
+            <exclusions>
+                <!-- Spring sudah punya spring-jcl; commons-logging bikin bentrok log -->
+                <exclusion>
+                    <groupId>commons-logging</groupId>
+                    <artifactId>commons-logging</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>

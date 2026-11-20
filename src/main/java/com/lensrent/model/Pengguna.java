@@ -14,15 +14,20 @@ public class Pengguna {
     @Column(nullable = false, length = 100)
     private String nama;
 
-    @Column(nullable = false, unique = true, length = 50)
+    /** Kosong (null) untuk penyewa yang dicatat admin di toko tanpa membuat akun. */
+    @Column(unique = true, length = 50)
     private String username;
 
-    /** Berisi hash BCrypt, bukan password asli. */
-    @Column(nullable = false, length = 100)
+    /** Berisi hash BCrypt, bukan password asli. Kosong untuk penyewa tanpa akun. */
+    @Column(length = 100)
     private String password;
 
     @Column(length = 13)
     private String noHp;
+
+    /** Diisi admin saat penyewa menyewa di toko. */
+    @Column(length = 16)
+    private String noKtp;
 
     @Column(length = 100)
     private String email;
@@ -59,6 +64,9 @@ public class Pengguna {
 
     public String getNoHp() { return noHp; }
     public void setNoHp(String noHp) { this.noHp = noHp; }
+
+    public String getNoKtp() { return noKtp; }
+    public void setNoKtp(String noKtp) { this.noKtp = noKtp; }
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }

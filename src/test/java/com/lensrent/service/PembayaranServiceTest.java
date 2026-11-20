@@ -7,12 +7,10 @@ import static org.mockito.Mockito.*;
 import com.lensrent.model.MetodeBayar;
 import com.lensrent.model.Pembayaran;
 import com.lensrent.model.StatusBayar;
-import com.lensrent.model.StatusPembayaran;
 import com.lensrent.model.Transaksi;
 import com.lensrent.repository.PembayaranRepository;
 import com.lensrent.repository.TransaksiRepository;
 import java.time.LocalDate;
-import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +22,6 @@ class PembayaranServiceTest {
 
     private PembayaranRepository pembayaranRepository;
     private TransaksiRepository transaksiRepository;
-    private TransaksiService transaksiService;
     private Transaksi transaksi;
     private PembayaranService service;
 
@@ -32,13 +29,11 @@ class PembayaranServiceTest {
     void siapkan() {
         pembayaranRepository = mock(PembayaranRepository.class);
         transaksiRepository = mock(TransaksiRepository.class);
-        transaksiService = mock(TransaksiService.class);
         transaksi = new Transaksi();
         transaksi.setTotal(300_000);
         when(transaksiRepository.findById(1L)).thenReturn(Optional.of(transaksi));
         when(pembayaranRepository.save(any(Pembayaran.class))).thenAnswer(i -> i.getArgument(0));
-        when(pembayaranRepository.findFirstByTransaksiIdAndStatus(any(), any())).thenReturn(Optional.empty());
-        service = new PembayaranService(pembayaranRepository, transaksiRepository, transaksiService);
+        service = new PembayaranService(pembayaranRepository, transaksiRepository, null); // tanpa database
     }
 
     private void sudahDibayar(long jumlah) {
@@ -62,7 +57,6 @@ class PembayaranServiceTest {
         Pembayaran p = service.catat(1L, HARI_INI, MetodeBayar.TUNAI);
         assertEquals(300_000, p.getJumlah());
         assertEquals(MetodeBayar.TUNAI, p.getMetode());
-        assertEquals(StatusPembayaran.DITERIMA, p.getStatus());
     }
 
     @Test
@@ -84,70 +78,15 @@ class PembayaranServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.catat(null, HARI_INI, MetodeBayar.TUNAI));
     }
 
-    /** Transfer online sebesar total yang menunggu konfirmasi untuk transaksi 1. */
-    private Pembayaran adaTransferMenunggu() {
-        Pembayaran p = new Pembayaran();
-        p.setTransaksi(transaksi);
-        p.setJumlah(300_000);
-        p.setStatus(StatusPembayaran.MENUNGGU);
-        when(pembayaranRepository.findFirstByTransaksiIdAndStatus(1L, StatusPembayaran.MENUNGGU)).thenReturn(Optional.of(p));
-        return p;
+    @Test
+    void laporanDenganTanggalAwalSetelahAkhirDitolak() {
+        Exception e = assertThrows(IllegalArgumentException.class,
+                () -> service.laporanTransaksi(HARI_INI, HARI_INI.minusDays(1)));
+        assertTrue(e.getMessage().contains("Tanggal awal"));
     }
 
     @Test
-    void pesanOnlineMembuatTransaksiDanTransferMenunggu() {
-        Map<Long, Integer> item = Map.of(7L, 1);
-        LocalDate besok = HARI_INI.plusDays(1);
-        when(transaksiService.simpan(2L, HARI_INI, besok, item)).thenReturn(transaksi);
-
-        assertSame(transaksi, service.pesanOnline(2L, HARI_INI, besok, item));
-        verify(pembayaranRepository).save(argThat(p -> p.getStatus() == StatusPembayaran.MENUNGGU
-                && p.getJumlah() == 300_000 && p.getMetode() == MetodeBayar.TRANSFER && p.getTransaksi() == transaksi));
-    }
-
-    @Test
-    void pesanOnlineGagalTidakMenyimpanPembayaran() {
-        when(transaksiService.simpan(any(), any(), any(), any()))
-                .thenThrow(new IllegalArgumentException("Sisa Alat 7 pada tanggal itu hanya 0 unit."));
-        assertThrows(IllegalArgumentException.class, () -> service.pesanOnline(2L, HARI_INI, HARI_INI.plusDays(1), Map.of(7L, 1)));
-        verify(pembayaranRepository, never()).save(any());
-    }
-
-    @Test
-    void konfirmasiMengubahStatusJadiDiterima() {
-        Pembayaran p = adaTransferMenunggu();
-        sudahDibayar(0);
-        service.konfirmasi(1L);
-        assertEquals(StatusPembayaran.DITERIMA, p.getStatus());
-        verify(pembayaranRepository).save(p);
-    }
-
-    @Test
-    void konfirmasiTanpaTransferMenungguDitolak() {
-        assertThrows(IllegalArgumentException.class, () -> service.konfirmasi(1L));
-    }
-
-    @Test
-    void tolakPesananOnlineMenghapusTransaksi() {
-        Pembayaran p = adaTransferMenunggu();
-        when(pembayaranRepository.existsByTransaksiId(1L)).thenReturn(false);
-        assertTrue(service.tolak(1L));
-        verify(pembayaranRepository).delete(p);
-        verify(transaksiRepository).delete(transaksi);
-    }
-
-    @Test
-    void tolakTransferTransaksiYangSudahAdaPembayaranLainTidakMenghapusTransaksi() {
-        adaTransferMenunggu();
-        when(pembayaranRepository.existsByTransaksiId(1L)).thenReturn(true);
-        assertFalse(service.tolak(1L));
-        verify(transaksiRepository, never()).delete(any());
-    }
-
-    @Test
-    void catatDiTokoDitolakSelamaAdaTransferMenunggu() {
-        adaTransferMenunggu();
-        sudahDibayar(0);
-        assertTrue(pesanError(HARI_INI, MetodeBayar.TUNAI).contains("menunggu konfirmasi"));
+    void notaTanpaTransaksiDitolak() {
+        assertThrows(IllegalArgumentException.class, () -> service.nota(null));
     }
 }

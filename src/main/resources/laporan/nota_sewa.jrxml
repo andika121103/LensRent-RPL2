@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Nota sewa satu transaksi (A5). Dibuat untuk Jaspersoft Studio / JasperReports 6.21.5. Warna mengikuti Tema aplikasi. -->
+<jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="nota_sewa" pageWidth="420" pageHeight="595" columnWidth="380" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
+	<!-- pdfFontName: agar huruf tebal/miring juga muncul di PDF -->
+	<style name="Dasar" isDefault="true" fontName="SansSerif" fontSize="9" forecolor="#141211" pdfFontName="Helvetica"/>
+	<style name="Tebal" style="Dasar" isBold="true" pdfFontName="Helvetica-Bold"/>
+	<style name="Label" style="Tebal" fontSize="7" forecolor="#6B6358"/>
+	<style name="Kepala" style="Tebal" mode="Opaque" forecolor="#FFFFFF" backcolor="#141211"/>
+	<style name="Baris" mode="Opaque" backcolor="#FFFFFF">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
+			<style backcolor="#F4F1EA"/>
+		</conditionalStyle>
+	</style>
+	<style name="Status" style="Tebal" mode="Opaque" forecolor="#8F1F1F" backcolor="#FBEAEA">
+		<conditionalStyle>
+			<conditionExpression><![CDATA[$F{metode} != null]]></conditionExpression>
+			<style forecolor="#24533A" backcolor="#E3EDE4"/>
+		</conditionalStyle>
+	</style>
+	<parameter name="transaksiId" class="java.lang.Long"/>
+	<queryString language="SQL">
+		<![CDATA[SELECT t.id, t.tanggal_sewa, t.tanggal_kembali, t.total,
+       DATEDIFF(t.tanggal_kembali, t.tanggal_sewa) AS lama_hari,
+       p.nama AS nama_penyewa, p.no_hp,
+       a.nama AS nama_alat, a.merek, d.jumlah, d.harga_per_hari,
+       d.harga_per_hari * d.jumlah * DATEDIFF(t.tanggal_kembali, t.tanggal_sewa) AS subtotal,
+       b.metode, b.tanggal AS tanggal_bayar
+FROM transaksi t
+JOIN pengguna p ON p.id = t.penyewa_id
+JOIN detail_transaksi d ON d.transaksi_id = t.id
+JOIN alat a ON a.id = d.alat_id
+LEFT JOIN pembayaran b ON b.transaksi_id = t.id
+WHERE t.id = $P{transaksiId}
+ORDER BY d.id]]>
+	</queryString>
+	<field name="id" class="java.lang.Long"/>
+	<field name="tanggal_sewa" class="java.sql.Date"/>
+	<field name="tanggal_kembali" class="java.sql.Date"/>
+	<field name="total" class="java.lang.Long"/>
+	<field name="lama_hari" class="java.lang.Long"/>
+	<field name="nama_penyewa" class="java.lang.String"/>
+	<field name="no_hp" class="java.lang.String"/>
+	<field name="nama_alat" class="java.lang.String"/>
+	<field name="merek" class="java.lang.String"/>
+	<field name="jumlah" class="java.lang.Integer"/>
+	<field name="harga_per_hari" class="java.lang.Long"/>
+	<field name="subtotal" class="java.lang.Long"/>
+	<field name="metode" class="java.lang.String"/>
+	<field name="tanggal_bayar" class="java.sql.Date"/>
+	<title>
+		<band height="146">
+			<frame>
+				<reportElement mode="Opaque" x="0" y="0" width="380" height="54" backcolor="#141211"/>
+				<staticText>
+					<reportElement style="Tebal" x="14" y="6" width="200" height="27" forecolor="#FFFFFF"/>
+					<textElement><font size="18"/></textElement>
+					<text><![CDATA[LensRent]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="Dasar" x="14" y="32" width="200" height="14" forecolor="#D8D2C6"/>
+					<textElement><font size="8"/></textElement>
+					<text><![CDATA[Sewa Kamera & Perlengkapan Foto]]></text>
+				</staticText>
+				<staticText>
+					<reportElement style="Tebal" x="180" y="11" width="186" height="18" forecolor="#FFFFFF"/>
+					<textElement textAlignment="Right"><font size="13"/></textElement>
+					<text><![CDATA[NOTA SEWA]]></text>
+				</staticText>
+				<textField>
+					<reportElement style="Dasar" x="180" y="32" width="186" height="14" forecolor="#D8D2C6"/>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression><![CDATA["No. Transaksi " + $F{id}]]></textFieldExpression>
+				</textField>
+			</frame>
+			<rectangle>
+				<reportElement x="0" y="54" width="380" height="3" forecolor="#B8241C" backcolor="#B8241C"/>
+			</rectangle>
+			<staticText>
+				<reportElement style="Label" x="0" y="68" width="185" height="11"/>
+				<text><![CDATA[PENYEWA]]></text>
+			</staticText>
+			<textField textAdjust="StretchHeight">
+				<reportElement style="Tebal" x="0" y="80" width="185" height="14"/>
+				<textElement><font size="10"/></textElement>
+				<textFieldExpression><![CDATA[$F{nama_penyewa}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="Dasar" positionType="Float" x="0" y="94" width="185" height="13"/>
+				<textFieldExpression><![CDATA[$F{no_hp} == null ? "-" : "HP " + $F{no_hp}]]></textFieldExpression>
+			</textField>
+			<staticText>
+				<reportElement style="Label" x="200" y="68" width="180" height="11"/>
+				<text><![CDATA[PERIODE SEWA]]></text>
+			</staticText>
+			<textField>
+				<reportElement style="Tebal" x="200" y="80" width="180" height="14"/>
+				<textElement><font size="10"/></textElement>
+				<textFieldExpression><![CDATA[new java.text.SimpleDateFormat("dd-MM-yyyy").format($F{tanggal_sewa}) + "  s/d  " + new java.text.SimpleDateFormat("dd-MM-yyyy").format($F{tanggal_kembali})]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="Dasar" x="200" y="94" width="180" height="13"/>
+				<textFieldExpression><![CDATA["Lama sewa " + $F{lama_hari} + " hari"]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="Status" positionType="Float" x="0" y="116" width="380" height="22"/>
+				<box leftPadding="8"/>
+				<textElement verticalAlignment="Middle"/>
+				<textFieldExpression><![CDATA[$F{metode} == null ? "BELUM BAYAR" : "LUNAS  -  dibayar " + ($F{metode}.equals("TUNAI") ? "tunai" : "transfer") + " tanggal " + new java.text.SimpleDateFormat("dd-MM-yyyy").format($F{tanggal_bayar})]]></textFieldExpression>
+			</textField>
+		</band>
+	</title>
+	<columnHeader>
+		<band height="22">
+			<staticText><reportElement style="Kepala" x="0" y="0" width="170" height="22"/><box leftPadding="8"/><textElement verticalAlignment="Middle"/><text><![CDATA[Alat]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="170" y="0" width="35" height="22"/><textElement textAlignment="Center" verticalAlignment="Middle"/><text><![CDATA[Jml]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="205" y="0" width="85" height="22"/><box rightPadding="6"/><textElement textAlignment="Right" verticalAlignment="Middle"/><text><![CDATA[Harga/Hari]]></text></staticText>
+			<staticText><reportElement style="Kepala" x="290" y="0" width="90" height="22"/><box rightPadding="8"/><textElement textAlignment="Right" verticalAlignment="Middle"/><text><![CDATA[Subtotal]]></text></staticText>
+		</band>
+	</columnHeader>
+	<detail>
+		<band height="22">
+			<frame>
+				<reportElement style="Baris" x="0" y="0" width="380" height="22"/>
+				<box><bottomPen lineWidth="0.5" lineColor="#DDD6C8"/></box>
+				<textField textAdjust="StretchHeight">
+					<reportElement style="Dasar" x="0" y="0" width="170" height="22"/>
+					<box topPadding="5" leftPadding="8" bottomPadding="5"/>
+					<textFieldExpression><![CDATA[$F{nama_alat} + " - " + $F{merek}]]></textFieldExpression>
+				</textField>
+				<textField>
+					<reportElement style="Dasar" x="170" y="0" width="35" height="22"/>
+					<box topPadding="5"/>
+					<textElement textAlignment="Center"/>
+					<textFieldExpression><![CDATA[$F{jumlah}]]></textFieldExpression>
+				</textField>
+				<textField pattern="Rp #,##0">
+					<reportElement style="Dasar" x="205" y="0" width="85" height="22"/>
+					<box topPadding="5" rightPadding="6"/>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression><![CDATA[$F{harga_per_hari}]]></textFieldExpression>
+				</textField>
+				<textField pattern="Rp #,##0">
+					<reportElement style="Dasar" x="290" y="0" width="90" height="22"/>
+					<box topPadding="5" rightPadding="8"/>
+					<textElement textAlignment="Right"/>
+					<textFieldExpression><![CDATA[$F{subtotal}]]></textFieldExpression>
+				</textField>
+			</frame>
+		</band>
+	</detail>
+	<summary>
+		<band height="208">
+			<frame>
+				<reportElement mode="Opaque" x="190" y="10" width="190" height="30" backcolor="#B8241C"/>
+				<staticText>
+					<reportElement style="Tebal" x="10" y="0" width="70" height="30" forecolor="#FFFFFF"/>
+					<textElement verticalAlignment="Middle"/>
+					<text><![CDATA[TOTAL]]></text>
+				</staticText>
+				<textField pattern="Rp #,##0">
+					<reportElement style="Tebal" x="80" y="0" width="102" height="30" forecolor="#FFFFFF"/>
+					<textElement textAlignment="Right" verticalAlignment="Middle"><font size="13"/></textElement>
+					<textFieldExpression><![CDATA[$F{total}]]></textFieldExpression>
+				</textField>
+			</frame>
+			<staticText>
+				<reportElement style="Label" x="0" y="54" width="380" height="11"/>
+				<text><![CDATA[KETENTUAN SEWA]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="Dasar" x="0" y="66" width="380" height="48" forecolor="#6B6358"/>
+				<textElement><font size="8"/><paragraph lineSpacing="1_1_2"/></textElement>
+				<text><![CDATA[1. Alat wajib dikembalikan paling lambat pada tanggal kembali yang tertera.
+2. Keterlambatan atau kerusakan alat dikenakan denda sesuai ketentuan toko.
+3. Simpan nota ini sebagai bukti sewa dan bawa saat mengembalikan alat.]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="Dasar" x="20" y="126" width="140" height="13"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[Penyewa]]></text>
+			</staticText>
+			<staticText>
+				<reportElement style="Dasar" x="220" y="126" width="140" height="13"/>
+				<textElement textAlignment="Center"/>
+				<text><![CDATA[Petugas LensRent]]></text>
+			</staticText>
+			<line>
+				<reportElement x="30" y="170" width="120" height="1" forecolor="#6B6358"/>
+			</line>
+			<line>
+				<reportElement x="230" y="170" width="120" height="1" forecolor="#6B6358"/>
+			</line>
+			<textField>
+				<reportElement style="Dasar" x="20" y="172" width="140" height="13"/>
+				<textElement textAlignment="Center"/>
+				<textFieldExpression><![CDATA[$F{nama_penyewa}]]></textFieldExpression>
+			</textField>
+			<textField>
+				<reportElement style="Dasar" x="0" y="194" width="380" height="12" forecolor="#6B6358"/>
+				<textElement textAlignment="Center"><font size="7"/></textElement>
+				<textFieldExpression><![CDATA["Dicetak " + new java.text.SimpleDateFormat("dd-MM-yyyy HH:mm").format(new java.util.Date()) + "  -  Terima kasih telah menyewa di LensRent"]]></textFieldExpression>
+			</textField>
+		</band>
+	</summary>
+	<noData>
+		<band height="20">
+			<staticText><reportElement style="Dasar" x="0" y="0" width="380" height="20"/><text><![CDATA[Transaksi tidak ditemukan.]]></text></staticText>
+		</band>
+	</noData>
+</jasperReport>
