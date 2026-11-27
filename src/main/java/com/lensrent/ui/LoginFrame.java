@@ -1,7 +1,6 @@
 package com.lensrent.ui;
 
 import com.lensrent.model.Pengguna;
-import com.lensrent.model.Role;
 import com.lensrent.service.AlatService;
 import com.lensrent.service.AuthService;
 import com.lensrent.service.PembayaranService;
@@ -37,7 +36,7 @@ public class LoginFrame extends JFrame {
 
         JPanel kartu = Tema.kartuForm();
         kartu.add(Tema.judul("Masuk"));
-        JLabel subjudul = new JLabel("Masuk ke akun LensRent Anda.");
+        JLabel subjudul = new JLabel("Khusus admin toko LensRent.");
         subjudul.setFont(Tema.font(Font.PLAIN, 14));
         subjudul.setForeground(Tema.TEKS_SEKUNDER);
         kartu.add(subjudul);
@@ -51,10 +50,6 @@ public class LoginFrame extends JFrame {
         kartu.add(tombolLogin);
         kartu.add(Box.createVerticalStrut(12));
         kartu.add(labelPesan);
-        kartu.add(Box.createVerticalStrut(12));
-
-        JButton tombolDaftar = Tema.tombolLink("Belum punya akun? Daftar sebagai penyewa");
-        kartu.add(tombolDaftar);
 
         // Kiri: panel merek gelap, kanan: form login
         JPanel isi = new JPanel(new GridLayout(1, 2));
@@ -63,17 +58,11 @@ public class LoginFrame extends JFrame {
         setContentPane(isi);
 
         tombolLogin.addActionListener(e -> login());
-        tombolDaftar.addActionListener(e -> bukaDaftar());
         getRootPane().setDefaultButton(tombolLogin); // tekan Enter = Login
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(Tema.LEBAR_JENDELA, Tema.TINGGI_JENDELA);
         setLocationRelativeTo(null);
-    }
-
-    /** Dipanggil setelah daftar akun berhasil. */
-    public void tampilkanSukses(String pesan) {
-        Tema.tampilkanSukses(labelPesan, pesan);
     }
 
     private void login() {
@@ -82,20 +71,10 @@ public class LoginFrame extends JFrame {
                     fieldUsername.getText(), new String(fieldPassword.getPassword()));
             Sesi.simpan(pengguna);
             dispose();
-
-            if (pengguna.getRole() == Role.ADMIN) {
-                new DashboardAdminFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
-            } else {
-                new MenuPenyewaFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
-            }
+            new DashboardAdminFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
         } catch (IllegalArgumentException ex) {
             Tema.tampilkanError(labelPesan, ex.getMessage());
             fieldPassword.setText("");
         }
-    }
-
-    private void bukaDaftar() {
-        dispose();
-        new DaftarAkunFrame(authService, alatService, transaksiService, pembayaranService).setVisible(true);
     }
 }

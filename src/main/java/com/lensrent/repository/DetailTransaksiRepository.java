@@ -10,10 +10,14 @@ public interface DetailTransaksiRepository extends JpaRepository<DetailTransaksi
 
     boolean existsByAlatId(Long alatId);
 
-    /** Sewa alat ini yang tanggalnya bertabrakan dengan rentang yang diminta. */
+    /**
+     * Sewa alat ini yang tanggalnya bisa bertabrakan dengan rentang yang diminta. Yang belum dikembalikan
+     * selalu ikut (mungkin terlambat); hari pemakaian persisnya dihitung di TransaksiService.
+     */
     @Query("""
             select d from DetailTransaksi d join fetch d.transaksi t
-            where d.alat.id = :alatId and t.tanggalSewa <= :kembali and t.tanggalKembali >= :sewa
+            where d.alat.id = :alatId and t.tanggalSewa <= :kembali
+            and (t.tanggalDikembalikan is null or t.tanggalDikembalikan >= :sewa)
             """)
     List<DetailTransaksi> yangBertabrakan(Long alatId, LocalDate sewa, LocalDate kembali);
 }

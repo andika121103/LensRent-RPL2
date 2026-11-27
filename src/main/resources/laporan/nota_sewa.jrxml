@@ -2,10 +2,10 @@
 <!-- Nota sewa satu transaksi (A5). Dibuat untuk Jaspersoft Studio / JasperReports 6.21.5. Warna mengikuti Tema aplikasi. -->
 <jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="nota_sewa" pageWidth="420" pageHeight="595" columnWidth="380" leftMargin="20" rightMargin="20" topMargin="20" bottomMargin="20" whenNoDataType="NoDataSection">
 	<!-- pdfFontName: agar huruf tebal/miring juga muncul di PDF -->
-	<style name="Dasar" isDefault="true" fontName="SansSerif" fontSize="9" forecolor="#141211" pdfFontName="Helvetica"/>
+	<style name="Dasar" isDefault="true" fontName="SansSerif" fontSize="9" forecolor="#1A1A1A" pdfFontName="Helvetica"/>
 	<style name="Tebal" style="Dasar" isBold="true" pdfFontName="Helvetica-Bold"/>
 	<style name="Label" style="Tebal" fontSize="7" forecolor="#6B6358"/>
-	<style name="Kepala" style="Tebal" mode="Opaque" forecolor="#FFFFFF" backcolor="#141211"/>
+	<style name="Kepala" style="Tebal" mode="Opaque" forecolor="#FFFFFF" backcolor="#1A1A1A"/>
 	<style name="Baris" mode="Opaque" backcolor="#FFFFFF">
 		<conditionalStyle>
 			<conditionExpression><![CDATA[$V{REPORT_COUNT} % 2 == 0]]></conditionExpression>
@@ -51,16 +51,15 @@ ORDER BY d.id]]>
 	<title>
 		<band height="146">
 			<frame>
-				<reportElement mode="Opaque" x="0" y="0" width="380" height="54" backcolor="#141211"/>
+				<reportElement mode="Opaque" x="0" y="0" width="380" height="54" backcolor="#1A1A1A"/>
+				<image scaleImage="RetainShape" hAlign="Left" vAlign="Middle">
+					<reportElement x="12" y="5" width="110" height="28"/>
+					<imageExpression><![CDATA["gambar/logo-putih.png"]]></imageExpression>
+				</image>
 				<staticText>
-					<reportElement style="Tebal" x="14" y="6" width="200" height="27" forecolor="#FFFFFF"/>
-					<textElement><font size="18"/></textElement>
-					<text><![CDATA[LensRent]]></text>
-				</staticText>
-				<staticText>
-					<reportElement style="Dasar" x="14" y="32" width="200" height="14" forecolor="#D8D2C6"/>
+					<reportElement style="Dasar" x="14" y="36" width="200" height="14" forecolor="#D8D2C6"/>
 					<textElement><font size="8"/></textElement>
-					<text><![CDATA[Sewa Kamera & Perlengkapan Foto]]></text>
+					<text><![CDATA[Rent the Gear. Capture the Moment.]]></text>
 				</staticText>
 				<staticText>
 					<reportElement style="Tebal" x="180" y="11" width="186" height="18" forecolor="#FFFFFF"/>
@@ -74,7 +73,7 @@ ORDER BY d.id]]>
 				</textField>
 			</frame>
 			<rectangle>
-				<reportElement x="0" y="54" width="380" height="3" forecolor="#B8241C" backcolor="#B8241C"/>
+				<reportElement x="0" y="54" width="380" height="3" forecolor="#FC5101" backcolor="#FC5101"/>
 			</rectangle>
 			<staticText>
 				<reportElement style="Label" x="0" y="68" width="185" height="11"/>
@@ -150,9 +149,9 @@ ORDER BY d.id]]>
 		</band>
 	</detail>
 	<summary>
-		<band height="208">
+		<band height="138">
 			<frame>
-				<reportElement mode="Opaque" x="190" y="10" width="190" height="30" backcolor="#B8241C"/>
+				<reportElement mode="Opaque" x="190" y="10" width="190" height="30" backcolor="#CC4400"/>
 				<staticText>
 					<reportElement style="Tebal" x="10" y="0" width="70" height="30" forecolor="#FFFFFF"/>
 					<textElement verticalAlignment="Middle"/>
@@ -175,29 +174,8 @@ ORDER BY d.id]]>
 2. Keterlambatan atau kerusakan alat dikenakan denda sesuai ketentuan toko.
 3. Simpan nota ini sebagai bukti sewa dan bawa saat mengembalikan alat.]]></text>
 			</staticText>
-			<staticText>
-				<reportElement style="Dasar" x="20" y="126" width="140" height="13"/>
-				<textElement textAlignment="Center"/>
-				<text><![CDATA[Penyewa]]></text>
-			</staticText>
-			<staticText>
-				<reportElement style="Dasar" x="220" y="126" width="140" height="13"/>
-				<textElement textAlignment="Center"/>
-				<text><![CDATA[Petugas LensRent]]></text>
-			</staticText>
-			<line>
-				<reportElement x="30" y="170" width="120" height="1" forecolor="#6B6358"/>
-			</line>
-			<line>
-				<reportElement x="230" y="170" width="120" height="1" forecolor="#6B6358"/>
-			</line>
 			<textField>
-				<reportElement style="Dasar" x="20" y="172" width="140" height="13"/>
-				<textElement textAlignment="Center"/>
-				<textFieldExpression><![CDATA[$F{nama_penyewa}]]></textFieldExpression>
-			</textField>
-			<textField>
-				<reportElement style="Dasar" x="0" y="194" width="380" height="12" forecolor="#6B6358"/>
+				<reportElement style="Dasar" x="0" y="124" width="380" height="12" forecolor="#6B6358"/>
 				<textElement textAlignment="Center"><font size="7"/></textElement>
 				<textFieldExpression><![CDATA["Dicetak " + new java.text.SimpleDateFormat("dd-MM-yyyy HH:mm").format(new java.util.Date()) + "  -  Terima kasih telah menyewa di LensRent"]]></textFieldExpression>
 			</textField>

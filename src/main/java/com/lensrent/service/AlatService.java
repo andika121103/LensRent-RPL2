@@ -5,12 +5,18 @@ import com.lensrent.model.Kategori;
 import com.lensrent.model.StatusAlat;
 import com.lensrent.repository.AlatRepository;
 import com.lensrent.repository.DetailTransaksiRepository;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Logika data alat: dipakai halaman Data Alat (admin) dan Katalog (penyewa).
+ * Logika data alat: dipakai halaman Data Alat (admin).
  * Jika input tidak valid, method melempar IllegalArgumentException berisi pesan
  * yang langsung bisa ditampilkan ke pengguna.
  */
@@ -18,6 +24,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class AlatService {
 
     private static final String POLA_ANGKA = "\\d{1,9}";
+    private static final long UKURAN_FOTO_MAKS = 5L * 1024 * 1024; // 5 MB
+
+    /** Folder penyimpanan foto, di samping aplikasi. Diganti folder sementara oleh unit test. */
+    Path folderFoto = Path.of("foto-alat");
 
     private final AlatRepository alatRepository;
     private final DetailTransaksiRepository detailTransaksiRepository;
@@ -42,10 +52,13 @@ public class AlatService {
                 .toList();
     }
 
-    /** id null = tambah alat baru, selain itu = ubah alat yang sudah ada. */
+    /**
+     * id null = tambah alat baru, selain itu = ubah alat yang sudah ada.
+     * fotoBaru null = foto tidak diganti; selain itu file disalin ke folder foto-alat.
+     */
     @Transactional
     public Alat simpan(Long id, String nama, Kategori kategori, String merek, String hargaPerHari,
-                       String stok, StatusAlat status, String keterangan) {
+                       String stok, StatusAlat status, String keterangan, Path fotoBaru) {
         if (kosong(nama) || kategori == null || kosong(merek) || kosong(hargaPerHari)
                 || kosong(stok) || status == null) {
             throw new IllegalArgumentException("Nama, kategori, merek, harga per hari, stok, dan status wajib diisi.");
@@ -62,6 +75,7 @@ public class AlatService {
         if (!stok.trim().matches(POLA_ANGKA)) {
             throw new IllegalArgumentException("Stok harus angka 0 atau lebih.");
         }
+        String ekstensi = fotoBaru == null ? null : ekstensiFoto(fotoBaru);
 
         Alat alat = id == null ? new Alat() : alatRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Alat tidak ditemukan, mungkin sudah dihapus."));
@@ -72,6 +86,10 @@ public class AlatService {
         alat.setStok(Integer.parseInt(stok.trim()));
         alat.setStatus(status);
         alat.setKeterangan(kosong(keterangan) ? null : keterangan.trim());
+        if (fotoBaru != null) {
+            // shortcut: foto lama tidak dihapus dari folder; tambah pembersihan jika folder membesar
+            alat.setFoto(salinFoto(fotoBaru, ekstensi));
+        }
         return alatRepository.save(alat);
     }
 
@@ -83,6 +101,38 @@ public class AlatService {
                     + "Ubah statusnya menjadi Tidak Tersedia.");
         }
         alatRepository.deleteById(id);
+    }
+
+    /** Lokasi file foto alat, atau null jika alat belum punya foto. */
+    public Path fileFoto(Alat alat) {
+        return alat.getFoto() == null ? null : folderFoto.resolve(alat.getFoto());
+    }
+
+    private String ekstensiFoto(Path file) {
+        String nama = file.getFileName().toString().toLowerCase(Locale.ROOT);
+        String ekstensi = nama.substring(nama.lastIndexOf('.') + 1);
+        if (!nama.contains(".") || !List.of("jpg", "jpeg", "png").contains(ekstensi)) {
+            throw new IllegalArgumentException("Foto harus file JPG atau PNG.");
+        }
+        try {
+            if (!Files.isRegularFile(file) || Files.size(file) > UKURAN_FOTO_MAKS) {
+                throw new IllegalArgumentException("File foto tidak ditemukan atau lebih dari 5 MB.");
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException("File foto tidak bisa dibaca.");
+        }
+        return ekstensi;
+    }
+
+    private String salinFoto(Path sumber, String ekstensi) {
+        String namaFile = "alat-" + UUID.randomUUID() + "." + ekstensi; // nama acak agar tidak menimpa foto lain
+        try {
+            Files.createDirectories(folderFoto);
+            Files.copy(sumber, folderFoto.resolve(namaFile));
+        } catch (IOException e) {
+            throw new UncheckedIOException("Foto gagal disalin ke folder " + folderFoto.toAbsolutePath(), e);
+        }
+        return namaFile;
     }
 
     private boolean kosong(String teks) {

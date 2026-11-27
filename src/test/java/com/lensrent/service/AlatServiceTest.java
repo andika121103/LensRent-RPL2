@@ -9,10 +9,13 @@ import com.lensrent.model.Kategori;
 import com.lensrent.model.StatusAlat;
 import com.lensrent.repository.AlatRepository;
 import com.lensrent.repository.DetailTransaksiRepository;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** Unit test AlatService tanpa database: repository diganti mock (tiruan). */
 class AlatServiceTest {
@@ -42,7 +45,7 @@ class AlatServiceTest {
     @Test
     void tambahAlatBerhasil() {
         Alat a = alatService.simpan(null, " Canon EOS 80D ", Kategori.KAMERA, "Canon", "150.000", "3",
-                StatusAlat.TERSEDIA, "  ");
+                StatusAlat.TERSEDIA, "  ", null);
         assertEquals("Canon EOS 80D", a.getNama());
         assertEquals(150000, a.getHargaPerHari());
         assertEquals(3, a.getStok());
@@ -54,7 +57,7 @@ class AlatServiceTest {
         Alat lama = alat("Canon EOS 80D", Kategori.KAMERA, "Canon", 3, StatusAlat.TERSEDIA);
         when(repository.findById(1L)).thenReturn(Optional.of(lama));
         alatService.simpan(1L, "Canon EOS 90D", Kategori.KAMERA, "Canon", "200000", "0",
-                StatusAlat.TIDAK_TERSEDIA, "Sedang diservis");
+                StatusAlat.TIDAK_TERSEDIA, "Sedang diservis", null);
         assertEquals("Canon EOS 90D", lama.getNama());
         assertEquals(0, lama.getStok());
         assertEquals(StatusAlat.TIDAK_TERSEDIA, lama.getStatus());
@@ -64,20 +67,20 @@ class AlatServiceTest {
     void ubahAlatYangSudahDihapusDitolak() {
         when(repository.findById(9L)).thenReturn(Optional.empty());
         assertThrows(IllegalArgumentException.class, () -> alatService.simpan(9L, "Lensa 50mm",
-                Kategori.LENSA, "Canon", "50000", "1", StatusAlat.TERSEDIA, null));
+                Kategori.LENSA, "Canon", "50000", "1", StatusAlat.TERSEDIA, null, null));
         verify(repository, never()).save(any());
     }
 
     @Test
     void inputTidakValidDitolak() {
         // nama kosong, kategori kosong, harga huruf, harga 0, harga negatif, stok negatif, nama terlalu panjang
-        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, " ", Kategori.LENSA, "Canon", "50000", "1", StatusAlat.TERSEDIA, null));
-        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", null, "Canon", "50000", "1", StatusAlat.TERSEDIA, null));
-        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA, "Canon", "lima puluh", "1", StatusAlat.TERSEDIA, null));
-        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA, "Canon", "0", "1", StatusAlat.TERSEDIA, null));
-        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA, "Canon", "-5000", "1", StatusAlat.TERSEDIA, null));
-        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA, "Canon", "50000", "-1", StatusAlat.TERSEDIA, null));
-        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "x".repeat(101), Kategori.LENSA, "Canon", "50000", "1", StatusAlat.TERSEDIA, null));
+        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, " ", Kategori.LENSA, "Canon", "50000", "1", StatusAlat.TERSEDIA, null, null));
+        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", null, "Canon", "50000", "1", StatusAlat.TERSEDIA, null, null));
+        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA, "Canon", "lima puluh", "1", StatusAlat.TERSEDIA, null, null));
+        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA, "Canon", "0", "1", StatusAlat.TERSEDIA, null, null));
+        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA, "Canon", "-5000", "1", StatusAlat.TERSEDIA, null, null));
+        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA, "Canon", "50000", "-1", StatusAlat.TERSEDIA, null, null));
+        assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "x".repeat(101), Kategori.LENSA, "Canon", "50000", "1", StatusAlat.TERSEDIA, null, null));
         verify(repository, never()).save(any());
     }
 
@@ -112,5 +115,35 @@ class AlatServiceTest {
         when(detailRepository.existsByAlatId(5L)).thenReturn(true);
         assertThrows(IllegalArgumentException.class, () -> alatService.hapus(5L));
         verify(repository, never()).deleteById(any());
+    }
+
+    @Test
+    void fotoDisalinKeFolderFoto(@TempDir Path tmp) throws Exception {
+        alatService.folderFoto = tmp.resolve("foto-alat");
+        Path sumber = Files.write(tmp.resolve("Kamera.JPG"), new byte[] {1, 2, 3});
+        Alat a = alatService.simpan(null, "Canon EOS 80D", Kategori.KAMERA, "Canon", "150000", "3",
+                StatusAlat.TERSEDIA, null, sumber);
+        assertTrue(a.getFoto().endsWith(".jpg"));
+        assertArrayEquals(new byte[] {1, 2, 3}, Files.readAllBytes(alatService.fileFoto(a)));
+    }
+
+    @Test
+    void ubahTanpaFotoBaruFotoLamaTetap() {
+        Alat lama = alat("Canon EOS 80D", Kategori.KAMERA, "Canon", 3, StatusAlat.TERSEDIA);
+        lama.setFoto("alat-lama.png");
+        when(repository.findById(1L)).thenReturn(Optional.of(lama));
+        alatService.simpan(1L, "Canon EOS 80D", Kategori.KAMERA, "Canon", "150000", "3", StatusAlat.TERSEDIA, null, null);
+        assertEquals("alat-lama.png", lama.getFoto());
+    }
+
+    @Test
+    void fotoBukanGambarDitolak(@TempDir Path tmp) throws Exception {
+        alatService.folderFoto = tmp.resolve("foto-alat");
+        Path dokumen = Files.write(tmp.resolve("daftar.pdf"), new byte[] {1});
+        var ex = assertThrows(IllegalArgumentException.class, () -> alatService.simpan(null, "Lensa", Kategori.LENSA,
+                "Canon", "50000", "1", StatusAlat.TERSEDIA, null, dokumen));
+        assertEquals("Foto harus file JPG atau PNG.", ex.getMessage());
+        assertFalse(Files.exists(alatService.folderFoto));
+        verify(repository, never()).save(any());
     }
 }

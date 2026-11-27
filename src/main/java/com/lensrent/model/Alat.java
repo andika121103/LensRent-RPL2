@@ -36,6 +36,9 @@ public class Alat {
 
     private String keterangan;
 
+    /** Nama file foto di folder foto-alat; kosong jika alat belum punya foto. */
+    private String foto;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -48,6 +51,9 @@ public class Alat {
     public boolean isBisaDisewa() {
         return status == StatusAlat.TERSEDIA && stok > 0;
     }
+
+    public String getFoto() { return foto; }
+    public void setFoto(String foto) { this.foto = foto; }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

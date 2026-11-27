@@ -18,7 +18,7 @@ import javax.swing.JSpinner;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
 
-/** Penyewa memilih rentang tanggal, lalu melihat sisa unit tiap alat pada tanggal itu. */
+/** Admin memilih rentang tanggal, lalu melihat sisa unit tiap alat pada tanggal itu. */
 public class CekKetersediaanDialog extends JDialog {
 
     private final AlatService alatService;

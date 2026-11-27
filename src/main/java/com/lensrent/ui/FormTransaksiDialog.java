@@ -1,6 +1,8 @@
 package com.lensrent.ui;
 
 import com.lensrent.model.Alat;
+import com.lensrent.model.MetodeBayar;
+import com.lensrent.model.Transaksi;
 import com.lensrent.service.AlatService;
 import com.lensrent.service.TransaksiService;
 import java.awt.Component;
@@ -11,6 +13,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
@@ -23,7 +26,7 @@ import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.table.DefaultTableModel;
 
-/** Form catat sewa di toko: data penyewa (nama/HP/KTP), rentang tanggal, satu atau lebih alat. */
+/** Form catat sewa di toko: data penyewa (nama/HP/KTP), rentang tanggal, alat, dan metode bayar (langsung lunas). */
 public class FormTransaksiDialog extends JDialog {
 
     private final TransaksiService transaksiService;
@@ -35,10 +38,12 @@ public class FormTransaksiDialog extends JDialog {
     private final JComboBox<Alat> pilihAlat = new JComboBox<>();
     private final JSpinner fieldJumlah = new JSpinner(new SpinnerNumberModel(1, 1, 999, 1));
     private final JTable tabelItem = Tema.tabel("Alat", "Jumlah");
+    private final JComboBox<MetodeBayar> pilihMetode = new JComboBox<>(MetodeBayar.values());
     private final JLabel labelTotal = new JLabel();
     private final JLabel labelPesan = Tema.labelPesan();
     /** Alat yang akan disewa -> jumlah unit; urutan sama dengan baris tabel. */
     private final Map<Alat, Integer> daftarItem = new LinkedHashMap<>();
+    private Transaksi tersimpan; // null = dialog ditutup tanpa menyimpan
 
     public FormTransaksiDialog(Window pemilik, TransaksiService transaksiService, AlatService alatService) {
         super(pemilik, "Catat Transaksi", ModalityType.APPLICATION_MODAL);
@@ -47,17 +52,19 @@ public class FormTransaksiDialog extends JDialog {
         alatService.semua().stream().filter(Alat::isBisaDisewa).forEach(pilihAlat::addItem);
         Tema.teksDropdown(pilihAlat, a -> a.getNama() + " - " + Tema.rupiah(a.getHargaPerHari()) + "/hari");
 
-        JPanel kartu = Tema.kartuForm();
-        kartu.add(Tema.judul("Catat Transaksi"));
-        kartu.add(Box.createVerticalStrut(16));
+        // Dua kolom agar dialog muat di layar laptop: kiri data penyewa & tanggal, kanan alat & pembayaran
+        JPanel kiri = kolom();
+        kiri.add(Tema.judul("Catat Transaksi"));
+        kiri.add(Box.createVerticalStrut(16));
+        Tema.tambahField(kiri, "Nama Penyewa", fieldNama);
+        Tema.tambahField(kiri, "No. HP", fieldNoHp);
+        Tema.tambahField(kiri, "No. KTP", fieldNoKtp);
+        Tema.tambahField(kiri, "Tanggal Sewa", fieldSewa);
+        Tema.tambahField(kiri, "Tanggal Kembali", fieldKembali);
 
-        Tema.tambahField(kartu, "Nama Penyewa", fieldNama);
-        Tema.tambahField(kartu, "No. HP", fieldNoHp);
-        Tema.tambahField(kartu, "No. KTP", fieldNoKtp);
-        Tema.tambahField(kartu, "Tanggal Sewa", fieldSewa);
-        Tema.tambahField(kartu, "Tanggal Kembali", fieldKembali);
-        Tema.tambahField(kartu, "Alat", pilihAlat);
-        Tema.tambahField(kartu, "Jumlah Unit", fieldJumlah);
+        JPanel kanan = kolom();
+        Tema.tambahField(kanan, "Alat", pilihAlat);
+        Tema.tambahField(kanan, "Jumlah Unit", fieldJumlah);
 
         JButton tombolTambah = new JButton("Tambah ke Daftar");
         JButton tombolHapus = new JButton("Hapus dari Daftar");
@@ -66,24 +73,31 @@ public class FormTransaksiDialog extends JDialog {
         tombolItem.setAlignmentX(Component.LEFT_ALIGNMENT);
         tombolItem.add(tombolTambah);
         tombolItem.add(tombolHapus);
-        kartu.add(tombolItem);
+        kanan.add(tombolItem);
 
         JScrollPane gulirItem = new JScrollPane(tabelItem);
         gulirItem.setAlignmentX(Component.LEFT_ALIGNMENT);
         gulirItem.setPreferredSize(new Dimension(380, 110));
         gulirItem.setMaximumSize(new Dimension(380, 110));
-        kartu.add(gulirItem);
-        kartu.add(Box.createVerticalStrut(12));
+        kanan.add(gulirItem);
+        kanan.add(Box.createVerticalStrut(12));
 
         labelTotal.setFont(Tema.font(Font.BOLD, 16));
         labelTotal.setAlignmentX(Component.LEFT_ALIGNMENT);
-        kartu.add(labelTotal);
-        kartu.add(Box.createVerticalStrut(12));
+        kanan.add(labelTotal);
+        kanan.add(Box.createVerticalStrut(12));
+        Tema.tambahField(kanan, "Metode Bayar (dibayar lunas sekarang)", pilihMetode);
 
-        JButton tombolSimpan = Tema.tombolUtama("Simpan");
-        kartu.add(tombolSimpan);
-        kartu.add(Box.createVerticalStrut(12));
-        kartu.add(labelPesan);
+        JButton tombolSimpan = Tema.tombolUtama("Simpan & Bayar Lunas");
+        kanan.add(tombolSimpan);
+        kanan.add(Box.createVerticalStrut(12));
+        kanan.add(labelPesan);
+
+        JPanel kartu = Tema.kartuForm();
+        kartu.setLayout(new BoxLayout(kartu, BoxLayout.X_AXIS));
+        kartu.add(kiri);
+        kartu.add(Box.createHorizontalStrut(32));
+        kartu.add(kanan);
 
         tombolTambah.addActionListener(e -> tambahItem());
         tombolHapus.addActionListener(e -> hapusItem());
@@ -97,6 +111,14 @@ public class FormTransaksiDialog extends JDialog {
         setResizable(false);
         pack();
         setLocationRelativeTo(pemilik);
+    }
+
+    private static JPanel kolom() {
+        JPanel kolom = new JPanel();
+        kolom.setLayout(new BoxLayout(kolom, BoxLayout.Y_AXIS));
+        kolom.setOpaque(false);
+        kolom.setAlignmentY(Component.TOP_ALIGNMENT);
+        return kolom;
     }
 
     private void tambahItem() {
@@ -148,16 +170,23 @@ public class FormTransaksiDialog extends JDialog {
         try {
             Map<Long, Integer> jumlahPerAlat = new LinkedHashMap<>(); // urutan sesuai yang diisi admin
             daftarItem.forEach((alat, jumlah) -> jumlahPerAlat.put(alat.getId(), jumlah));
-            transaksiService.simpan(fieldNama.getText(), fieldNoHp.getText(), fieldNoKtp.getText(),
-                    Tema.nilaiTanggal(fieldSewa), Tema.nilaiTanggal(fieldKembali), jumlahPerAlat);
+            tersimpan = transaksiService.simpan(fieldNama.getText(), fieldNoHp.getText(), fieldNoKtp.getText(),
+                    Tema.nilaiTanggal(fieldSewa), Tema.nilaiTanggal(fieldKembali), jumlahPerAlat,
+                    (MetodeBayar) pilihMetode.getSelectedItem());
             dispose();
         } catch (IllegalArgumentException ex) {
             tampilkanError(ex.getMessage());
         }
     }
 
+    /** Transaksi yang baru disimpan (sudah lunas), atau null jika dibatalkan. */
+    public Transaksi getTersimpan() {
+        return tersimpan;
+    }
+
     private void tampilkanError(String pesan) {
-        Tema.tampilkanError(labelPesan, pesan);
+        // lebar tetap: pesan panjang turun baris, bukan melebarkan kolom kanan
+        Tema.tampilkanError(labelPesan, "<div style='width:290px'>" + pesan + "</div>");
         pack(); // dialog membesar agar pesan error terlihat
     }
 }

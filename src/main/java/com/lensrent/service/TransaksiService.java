@@ -2,15 +2,19 @@ package com.lensrent.service;
 
 import com.lensrent.model.Alat;
 import com.lensrent.model.DetailTransaksi;
+import com.lensrent.model.MetodeBayar;
+import com.lensrent.model.Pembayaran;
 import com.lensrent.model.Pengguna;
 import com.lensrent.model.Role;
 import com.lensrent.model.StatusAlat;
 import com.lensrent.model.Transaksi;
 import com.lensrent.repository.AlatRepository;
 import com.lensrent.repository.DetailTransaksiRepository;
+import com.lensrent.repository.PembayaranRepository;
 import com.lensrent.repository.PenggunaRepository;
 import com.lensrent.repository.TransaksiRepository;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Service;
@@ -32,13 +36,16 @@ public class TransaksiService {
     private final DetailTransaksiRepository detailRepository;
     private final AlatRepository alatRepository;
     private final PenggunaRepository penggunaRepository;
+    private final PembayaranRepository pembayaranRepository;
 
     public TransaksiService(TransaksiRepository transaksiRepository, DetailTransaksiRepository detailRepository,
-                            AlatRepository alatRepository, PenggunaRepository penggunaRepository) {
+                            AlatRepository alatRepository, PenggunaRepository penggunaRepository,
+                            PembayaranRepository pembayaranRepository) {
         this.transaksiRepository = transaksiRepository;
         this.detailRepository = detailRepository;
         this.alatRepository = alatRepository;
         this.penggunaRepository = penggunaRepository;
+        this.pembayaranRepository = pembayaranRepository;
     }
 
     public List<Transaksi> semua() {
@@ -48,14 +55,15 @@ public class TransaksiService {
     /**
      * Unit yang masih bisa disewa sepanjang rentang tanggal. Dihitung dari hari paling ramai:
      * dua sewa yang bertabrakan dengan rentang tetapi berbeda hari hanya memakai satu unit yang sama.
-     * Hari pengembalian dihitung terpakai karena jam kembalinya tidak dicatat.
+     * Hari pengembalian dihitung terpakai karena jam kembalinya tidak dicatat. Alat yang dikembalikan lebih awal
+     * bebas sejak hari berikutnya; alat terlambat yang belum kembali dihitung terpakai sampai hari ini.
      */
     public int sisaUnit(Alat alat, LocalDate sewa, LocalDate kembali) {
         periksaTanggal(sewa, kembali);
         return hitungSisa(alat, sewa, kembali);
     }
 
-    /** Stok Tersedia di Data Alat dan Katalog: hanya melihat hari ini, bukan sewa yang baru mulai besok. */
+    /** Kolom Sisa Hari Ini di Data Alat: hanya melihat hari ini, bukan sewa yang baru mulai besok. */
     public int stokTersediaHariIni(Alat alat) {
         return hitungSisa(alat, LocalDate.now(), LocalDate.now());
     }
@@ -68,7 +76,7 @@ public class TransaksiService {
         int terpakai = sewa.datesUntil(kembali.plusDays(1))
                 .mapToInt(hari -> bentrok.stream()
                         .filter(d -> !hari.isBefore(d.getTransaksi().getTanggalSewa())
-                                && !hari.isAfter(d.getTransaksi().getTanggalKembali()))
+                                && !hari.isAfter(d.getTransaksi().getAkhirPakai(LocalDate.now())))
                         .mapToInt(DetailTransaksi::getJumlah)
                         .sum())
                 .max().orElse(0);
@@ -84,10 +92,12 @@ public class TransaksiService {
     /**
      * Sewa di toko. Data penyewa diisi admin; penyewa dengan No HP yang sama dipakai ulang (No KTP diperbarui),
      * jika belum ada dibuat sebagai penyewa tanpa akun. jumlahPerAlat: id alat -> jumlah unit yang disewa.
+     * Penyewa langsung membayar lunas saat itu (alat baru diserahkan setelah dibayar), jadi pembayaran
+     * dicatat dalam transaksi database yang sama: tidak ada sewa yang tersimpan tanpa pembayaran.
      */
     @Transactional
     public Transaksi simpan(String nama, String noHp, String noKtp, LocalDate sewa, LocalDate kembali,
-                            Map<Long, Integer> jumlahPerAlat) {
+                            Map<Long, Integer> jumlahPerAlat, MetodeBayar metode) {
         if (nama == null || nama.isBlank() || noHp == null || noHp.isBlank() || noKtp == null || noKtp.isBlank()) {
             throw new IllegalArgumentException("Nama, No. HP, dan No. KTP penyewa wajib diisi.");
         }
@@ -104,7 +114,18 @@ public class TransaksiService {
         if (jumlahPerAlat == null || jumlahPerAlat.isEmpty()) {
             throw new IllegalArgumentException("Tambahkan minimal satu alat.");
         }
+        if (metode == null) {
+            throw new IllegalArgumentException("Pilih metode bayar.");
+        }
         Pengguna penyewa = penggunaRepository.findFirstByRoleAndNoHpOrderByIdAsc(Role.USER, noHp.trim())
+                .map(lama -> {
+                    // satu No HP = satu penyewa; nama berbeda biasanya salah ketik No HP
+                    if (!lama.getNama().equalsIgnoreCase(nama.trim())) {
+                        throw new IllegalArgumentException("No. HP " + noHp.trim() + " sudah terdaftar atas nama "
+                                + lama.getNama() + ". Pakai nama itu, atau periksa kembali No. HP.");
+                    }
+                    return lama;
+                })
                 .orElseGet(() -> {
                     Pengguna baru = new Pengguna();
                     baru.setNama(nama.trim());
@@ -145,6 +166,88 @@ public class TransaksiService {
             throw new IllegalArgumentException("Total terlalu besar, periksa harga dan jumlah alat.");
         }
         transaksi.setTotal(total);
+        transaksi = transaksiRepository.save(transaksi);
+
+        Pembayaran pembayaran = new Pembayaran();
+        pembayaran.setTransaksi(transaksi);
+        pembayaran.setJumlah(total);
+        pembayaran.setTanggal(LocalDate.now());
+        pembayaran.setMetode(metode);
+        pembayaranRepository.save(pembayaran);
+        return transaksi;
+    }
+
+    /** Harga sewa semua alat di transaksi untuk satu hari (harga saat disewa x jumlah). */
+    public static long hargaPerHari(Transaksi transaksi) {
+        long total = 0;
+        for (DetailTransaksi d : transaksi.getDetail()) {
+            total = Math.addExact(total, Math.multiplyExact(d.getHargaPerHari(), (long) d.getJumlah()));
+        }
+        return total;
+    }
+
+    /** Denda telat = hari terlambat x harga sewa per hari seluruh alat di transaksi. */
+    public static long dendaTelat(Transaksi transaksi, LocalDate dikembalikan) {
+        long hari = Math.max(0, ChronoUnit.DAYS.between(transaksi.getTanggalKembali(), dikembalikan));
+        return Math.multiplyExact(hari, hargaPerHari(transaksi));
+    }
+
+    /** Status untuk tabel: Dikembalikan, Terlambat n hari, Disewa, atau Belum Diambil (tanggal sewa belum tiba). */
+    public static String status(Transaksi transaksi, LocalDate hariIni) {
+        if (transaksi.getTanggalDikembalikan() != null) {
+            return "Dikembalikan";
+        }
+        long telat = transaksi.getHariTerlambat(hariIni);
+        if (telat > 0) {
+            return "Terlambat " + telat + " hari";
+        }
+        return hariIni.isBefore(transaksi.getTanggalSewa()) ? "Belum Diambil" : "Disewa";
+    }
+
+    /**
+     * Mencatat alat dikembalikan. Denda telat dihitung otomatis, denda kerusakan diisi admin (0 jika tidak ada).
+     * Denda dibayar saat itu juga, jadi langsung tersimpan sebagai pendapatan transaksi ini.
+     */
+    @Transactional
+    public Transaksi kembalikan(Long transaksiId, LocalDate dikembalikan, long dendaKerusakan, String keterangan) {
+        if (transaksiId == null) {
+            throw new IllegalArgumentException("Pilih transaksi terlebih dahulu.");
+        }
+        Transaksi transaksi = transaksiRepository.findById(transaksiId)
+                .orElseThrow(() -> new IllegalArgumentException("Transaksi tidak ditemukan."));
+        if (transaksi.getTanggalDikembalikan() != null) {
+            throw new IllegalArgumentException("Alat transaksi No " + transaksiId + " sudah dikembalikan.");
+        }
+        if (dikembalikan == null) {
+            throw new IllegalArgumentException("Tanggal dikembalikan wajib diisi.");
+        }
+        if (dikembalikan.isBefore(transaksi.getTanggalSewa())) {
+            throw new IllegalArgumentException("Tanggal dikembalikan tidak boleh sebelum tanggal sewa.");
+        }
+        if (dikembalikan.isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException("Tanggal dikembalikan tidak boleh setelah hari ini.");
+        }
+        if (dendaKerusakan < 0) {
+            throw new IllegalArgumentException("Denda kerusakan tidak boleh negatif.");
+        }
+        String teks = keterangan == null ? "" : keterangan.trim();
+        if (dendaKerusakan > 0 && teks.isEmpty()) {
+            throw new IllegalArgumentException("Isi keterangan kerusakan/kehilangan.");
+        }
+        if (teks.length() > 255) {
+            throw new IllegalArgumentException("Keterangan maksimal 255 karakter.");
+        }
+        long telat;
+        try {
+            telat = dendaTelat(transaksi, dikembalikan);
+            Math.addExact(telat, dendaKerusakan); // total denda harus muat di long
+        } catch (ArithmeticException e) {
+            throw new IllegalArgumentException("Denda terlalu besar, periksa nominal denda kerusakan.");
+        }
+        transaksi.setDendaTelat(telat);
+        transaksi.setTanggalDikembalikan(dikembalikan);
+        transaksi.setDendaKerusakan(dendaKerusakan);
+        transaksi.setKeteranganDenda(teks.isEmpty() ? null : teks);
         return transaksiRepository.save(transaksi);
     }
 

@@ -20,12 +20,11 @@ public class DashboardAdminFrame extends JFrame {
         JPanel konten = new JPanel(new BorderLayout());
         konten.setBackground(Tema.KREM);
 
-        // null = halaman dibuat di tahap berikutnya (tombol menu nonaktif)
         Map<String, Runnable> menu = new LinkedHashMap<>();
+        menu.put("Dashboard", () -> Tema.gantiIsi(konten, new DashboardPanel(alatService, transaksiService)));
         menu.put("Data Alat", () -> Tema.gantiIsi(konten, new DataAlatPanel(alatService, transaksiService)));
-        menu.put("Pembayaran", () -> Tema.gantiIsi(konten, new KonfirmasiPembayaranPanel(pembayaranService)));
-        menu.put("Transaksi Sewa", () -> Tema.gantiIsi(konten, new TransaksiSewaPanel(transaksiService, alatService)));
-        menu.put("Pengembalian & Denda", null);
+        menu.put("Transaksi Sewa", () -> Tema.gantiIsi(konten, new TransaksiSewaPanel(transaksiService, alatService, pembayaranService)));
+        menu.put("Pengembalian & Denda", () -> Tema.gantiIsi(konten, new PengembalianPanel(transaksiService)));
         menu.put("Laporan", () -> Tema.gantiIsi(konten, new LaporanPanel(pembayaranService)));
 
         JPanel isi = new JPanel(new BorderLayout());
@@ -33,7 +32,7 @@ public class DashboardAdminFrame extends JFrame {
         isi.add(konten, BorderLayout.CENTER);
         setContentPane(isi);
 
-        menu.get("Data Alat").run(); // halaman pertama setelah login
+        menu.get("Dashboard").run(); // halaman pertama setelah login
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(Tema.LEBAR_JENDELA, Tema.TINGGI_JENDELA);

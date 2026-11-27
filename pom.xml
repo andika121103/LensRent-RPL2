@@ -23,6 +23,8 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <!-- dipakai NetBeans saat Run Project -->
         <exec.mainClass>com.lensrent.LensRentApplication</exec.mainClass>
+        <!-- NetBeans 31 membaca kelas utama dari start-class (pengaturan exec di pom induk Spring Boot) -->
+        <start-class>com.lensrent.LensRentApplication</start-class>
     </properties>
 
     <dependencies>

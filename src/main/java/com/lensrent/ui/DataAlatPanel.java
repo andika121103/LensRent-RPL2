@@ -1,6 +1,7 @@
 package com.lensrent.ui;
 
 import com.lensrent.model.Alat;
+import com.lensrent.model.Kategori;
 import com.lensrent.service.AlatService;
 import com.lensrent.service.TransaksiService;
 import java.awt.BorderLayout;
@@ -8,24 +9,36 @@ import java.awt.FlowLayout;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.JTextField;
 import javax.swing.SwingUtilities;
 import javax.swing.table.DefaultTableModel;
 
-/** Halaman admin: daftar alat + tambah, ubah, hapus. */
+/**
+ * Halaman admin: daftar alat (cari, saring kategori, foto + keterangan) + tambah, ubah, hapus,
+ * dan cek ketersediaan per tanggal untuk menjawab pertanyaan pelanggan.
+ */
 public class DataAlatPanel extends JPanel {
+
+    private static final String SEMUA_KATEGORI = "Semua Kategori";
 
     private final AlatService alatService;
     private final TransaksiService transaksiService;
-    private final JTable tabel = Tema.tabel("Nama", "Kategori", "Merek", "Harga/Hari", "Jumlah Stok", "Stok Tersedia", "Status");
+    private final JTextField fieldCari = new JTextField(18);
+    private final JComboBox<Object> pilihKategori = new JComboBox<>();
+    private final JTable tabel = Tema.tabel("Nama", "Kategori", "Merek", "Harga/Hari", "Stok", "Sisa Hari Ini", "Status");
+    private final JLabel kotakFoto = Tema.kotakFoto(220, 165);
+    private final JLabel labelKeterangan = new JLabel(" ");
     /** Urutan sama dengan baris tabel, untuk mengambil alat yang dipilih. */
     private List<Alat> daftarAlat = List.of();
 
     public DataAlatPanel(AlatService alatService, TransaksiService transaksiService) {
-        super(new BorderLayout(0, 16));
+        super(new BorderLayout(16, 16)); // jarak 16 antara tabel dan foto
         this.alatService = alatService;
         this.transaksiService = transaksiService;
         setBackground(Tema.KREM);
@@ -42,14 +55,67 @@ public class DataAlatPanel extends JPanel {
         tombolPanel.add(tombolHapus);
         tombolPanel.add(tombolTambah);
 
-        JPanel atas = new JPanel(new BorderLayout());
+        JPanel judul = new JPanel(new BorderLayout());
+        judul.setOpaque(false);
+        judul.add(Tema.kepala("Data Alat", "Daftar alat, stok yang bisa disewa hari ini, dan fotonya"), BorderLayout.WEST);
+        judul.add(tombolPanel, BorderLayout.EAST);
+
+        pilihKategori.addItem(SEMUA_KATEGORI);
+        for (Kategori kategori : Kategori.values()) {
+            pilihKategori.addItem(kategori);
+        }
+        JButton tombolCari = new JButton("Cari");
+        JLabel labelCari = new JLabel("Cari nama/merek:");
+        labelCari.setLabelFor(fieldCari);
+        JButton tombolCek = new JButton("Cek Ketersediaan per Tanggal");
+
+        JPanel saringan = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        saringan.setOpaque(false);
+        saringan.add(labelCari);
+        saringan.add(fieldCari);
+        saringan.add(pilihKategori);
+        saringan.add(tombolCari);
+        saringan.add(tombolCek);
+
+        JPanel atas = new JPanel(new BorderLayout(0, 12));
         atas.setOpaque(false);
-        atas.add(Tema.judul("Data Alat"), BorderLayout.WEST);
-        atas.add(tombolPanel, BorderLayout.EAST);
+        atas.add(judul, BorderLayout.NORTH);
+        atas.add(saringan, BorderLayout.CENTER);
+
+        JPanel panelFoto = new JPanel(new BorderLayout(0, 8));
+        panelFoto.setOpaque(false);
+        panelFoto.add(new JLabel("Foto alat"), BorderLayout.NORTH);
+        panelFoto.add(kotakFoto, BorderLayout.CENTER);
+        labelKeterangan.setForeground(Tema.TEKS_SEKUNDER);
+        panelFoto.add(labelKeterangan, BorderLayout.SOUTH);
+        JPanel sisiKanan = new JPanel(new BorderLayout());
+        sisiKanan.setOpaque(false);
+        sisiKanan.add(panelFoto, BorderLayout.NORTH);
 
         add(atas, BorderLayout.NORTH);
+        // lebar relatif kolom; nama alat paling panjang
+        int[] lebar = {175, 80, 80, 110, 50, 95, 110};
+        for (int i = 0; i < lebar.length; i++) {
+            tabel.getColumnModel().getColumn(i).setPreferredWidth(lebar[i]);
+        }
+        Tema.rataKanan(tabel, 3, 4, 5);
+        Tema.kolomStatus(tabel, 6);
         add(new JScrollPane(tabel), BorderLayout.CENTER);
+        add(sisiKanan, BorderLayout.EAST);
 
+        tabel.getSelectionModel().addListSelectionListener(e -> {
+            int baris = tabel.getSelectedRow();
+            Alat alat = baris < 0 ? null : daftarAlat.get(baris);
+            Tema.tampilkanFoto(kotakFoto, alat == null ? null : alatService.fileFoto(alat));
+            // <html> agar keterangan panjang turun baris di bawah foto
+            labelKeterangan.setText(alat == null || alat.getKeterangan() == null ? " "
+                    : "<html><div style='width:200px'>" + alat.getKeterangan() + "</div></html>");
+        });
+        tombolCari.addActionListener(e -> muat());
+        fieldCari.addActionListener(e -> muat()); // tekan Enter di kolom cari
+        pilihKategori.addActionListener(e -> muat());
+        tombolCek.addActionListener(e -> new CekKetersediaanDialog(
+                SwingUtilities.getWindowAncestor(this), alatService, transaksiService).setVisible(true));
         tombolTambah.addActionListener(e -> bukaForm(null));
         tombolUbah.addActionListener(e -> {
             Alat alat = alatTerpilih();
@@ -63,9 +129,10 @@ public class DataAlatPanel extends JPanel {
     }
 
     private void muat() {
-        daftarAlat = alatService.semua();
+        Kategori kategori = pilihKategori.getSelectedItem() instanceof Kategori k ? k : null;
         DefaultTableModel model = (DefaultTableModel) tabel.getModel();
         model.setRowCount(0);
+        daftarAlat = alatService.cari(fieldCari.getText(), kategori);
         for (Alat alat : daftarAlat) {
             model.addRow(new Object[] {alat.getNama(), alat.getKategori(), alat.getMerek(),
                 Tema.rupiah(alat.getHargaPerHari()), alat.getStok(),

@@ -30,6 +30,16 @@ public class Transaksi {
     @Column(nullable = false)
     private long total;
 
+    /** null = alat belum dikembalikan. */
+    private LocalDate tanggalDikembalikan;
+
+    /** Dalam Rupiah; null sampai alat dikembalikan. Dibayar tunai saat pengembalian. */
+    private Long dendaTelat;
+
+    private Long dendaKerusakan;
+
+    private String keteranganDenda;
+
     @OneToMany(mappedBy = "transaksi", cascade = CascadeType.ALL)
     private List<DetailTransaksi> detail = new ArrayList<>();
 
@@ -45,6 +55,28 @@ public class Transaksi {
         return ChronoUnit.DAYS.between(tanggalSewa, tanggalKembali);
     }
 
+    /**
+     * Hari terakhir alat dipakai: hari dikembalikan, atau jika belum kembali jadwal kembali
+     * (hari ini jika sudah terlambat, karena alat masih di penyewa).
+     */
+    public LocalDate getAkhirPakai(LocalDate hariIni) {
+        if (tanggalDikembalikan != null) {
+            return tanggalDikembalikan;
+        }
+        return hariIni.isAfter(tanggalKembali) ? hariIni : tanggalKembali;
+    }
+
+    /** Hari terlambat sampai dikembalikan (atau sampai hariIni jika belum kembali); 0 jika tepat waktu. */
+    public long getHariTerlambat(LocalDate hariIni) {
+        LocalDate akhir = tanggalDikembalikan != null ? tanggalDikembalikan : hariIni;
+        return Math.max(0, ChronoUnit.DAYS.between(tanggalKembali, akhir));
+    }
+
+    /** Denda telat + kerusakan; 0 jika belum dikembalikan. */
+    public long getTotalDenda() {
+        return (dendaTelat == null ? 0 : dendaTelat) + (dendaKerusakan == null ? 0 : dendaKerusakan);
+    }
+
     public Long getId() { return id; }
 
     public Pengguna getPenyewa() { return penyewa; }
@@ -58,6 +90,18 @@ public class Transaksi {
 
     public long getTotal() { return total; }
     public void setTotal(long total) { this.total = total; }
+
+    public LocalDate getTanggalDikembalikan() { return tanggalDikembalikan; }
+    public void setTanggalDikembalikan(LocalDate tanggalDikembalikan) { this.tanggalDikembalikan = tanggalDikembalikan; }
+
+    public Long getDendaTelat() { return dendaTelat; }
+    public void setDendaTelat(Long dendaTelat) { this.dendaTelat = dendaTelat; }
+
+    public Long getDendaKerusakan() { return dendaKerusakan; }
+    public void setDendaKerusakan(Long dendaKerusakan) { this.dendaKerusakan = dendaKerusakan; }
+
+    public String getKeteranganDenda() { return keteranganDenda; }
+    public void setKeteranganDenda(String keteranganDenda) { this.keteranganDenda = keteranganDenda; }
 
     public List<DetailTransaksi> getDetail() { return detail; }
 

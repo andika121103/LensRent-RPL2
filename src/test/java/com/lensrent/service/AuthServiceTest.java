@@ -1,7 +1,6 @@
 package com.lensrent.service;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 import com.lensrent.model.Pengguna;
@@ -21,7 +20,6 @@ class AuthServiceTest {
     @BeforeEach
     void siapkan() {
         repository = mock(PenggunaRepository.class);
-        when(repository.save(any(Pengguna.class))).thenAnswer(i -> i.getArgument(0));
         authService = new AuthService(repository);
     }
 
@@ -59,29 +57,9 @@ class AuthServiceTest {
     }
 
     @Test
-    void daftarBerhasilDenganRoleUserDanPasswordTerhash() {
-        Pengguna p = authService.daftar("Budi", "081234567890", "budi@mail.com", "Medan", "budi", "rahasia1", "rahasia1");
-        assertEquals(Role.USER, p.getRole());
-        assertNotEquals("rahasia1", p.getPassword());
-        assertTrue(new BCryptPasswordEncoder().matches("rahasia1", p.getPassword()));
-    }
-
-    @Test
-    void daftarUsernameSudahAdaDitolak() {
-        when(repository.existsByUsername("admin1")).thenReturn(true);
-        assertThrows(IllegalArgumentException.class,
-                () -> authService.daftar("Budi", "081234567890", "budi@mail.com", "Medan", "admin1", "rahasia1", "rahasia1"));
-        verify(repository, never()).save(any());
-    }
-
-    @Test
-    void daftarInputTidakValidDitolak() {
-        // No. HP huruf, No. HP terlalu pendek, email salah, password < 6, ulangi password beda
-        assertThrows(IllegalArgumentException.class, () -> authService.daftar("Budi", "08abc4567890", "budi@mail.com", "Medan", "budi", "rahasia1", "rahasia1"));
-        assertThrows(IllegalArgumentException.class, () -> authService.daftar("Budi", "08123", "budi@mail.com", "Medan", "budi", "rahasia1", "rahasia1"));
-        assertThrows(IllegalArgumentException.class, () -> authService.daftar("Budi", "081234567890", "budi@mail", "Medan", "budi", "rahasia1", "rahasia1"));
-        assertThrows(IllegalArgumentException.class, () -> authService.daftar("Budi", "081234567890", "budi@mail.com", "Medan", "budi", "12345", "12345"));
-        assertThrows(IllegalArgumentException.class, () -> authService.daftar("Budi", "081234567890", "budi@mail.com", "Medan", "budi", "rahasia1", "rahasia2"));
-        verify(repository, never()).save(any());
+    void loginPenyewaDitolak() {
+        when(repository.findByUsername("budi")).thenReturn(Optional.of(akun("budi", "rahasia1", Role.USER, true)));
+        var ex = assertThrows(IllegalArgumentException.class, () -> authService.login("budi", "rahasia1"));
+        assertEquals("Aplikasi ini hanya untuk admin toko.", ex.getMessage());
     }
 }
